@@ -1,0 +1,325 @@
+import SwiftUI
+import CoreData
+import Foundation
+
+/// Test view for security features
+struct SecurityTestView: View {
+    @StateObject private var securityManager = SecurityManager.shared
+    @StateObject private var encryptionService = EncryptionService.shared
+    @StateObject private var biometricService = BiometricService.shared
+    
+    @State private var testText = "This is a test message for encryption"
+    @State private var encryptedData: EncryptedData?
+    @State private var decryptedText = ""
+    @State private var isAuthenticating = false
+    @State private var alertMessage = ""
+    @State private var showAlert = false
+    
+    var body: some View {
+        NavigationView {
+            ScrollView {
+                VStack(spacing: 20) {
+                    // Header
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Security Test")
+                            .font(.largeTitle)
+                            .fontWeight(.bold)
+                            .foregroundColor(.white)
+                        
+                        Text("Test encryption and biometric features")
+                            .font(.subheadline)
+                            .foregroundColor(.white.opacity(0.8))
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal)
+                    
+                    // Test Cards
+                    EncryptionTestCard(
+                        testText: $testText,
+                        encryptedData: $encryptedData,
+                        decryptedText: $decryptedText,
+                        alertMessage: $alertMessage,
+                        showAlert: $showAlert
+                    )
+                    
+                    BiometricTestCard(
+                        isAuthenticating: $isAuthenticating,
+                        alertMessage: $alertMessage,
+                        showAlert: $showAlert
+                    )
+                    
+                    SecuritySettingsCard()
+                }
+                .padding()
+            }
+        }
+        .background(AtlasTheme.Colors.background.ignoresSafeArea())
+        .alert("Security Test", isPresented: $showAlert) {
+            Button("OK") { }
+        } message: {
+            Text(alertMessage)
+        }
+    }
+}
+
+// MARK: - Encryption Test Card
+struct EncryptionTestCard: View {
+    @Binding var testText: String
+    @Binding var encryptedData: EncryptedData?
+    @Binding var decryptedText: String
+    @Binding var alertMessage: String
+    @Binding var showAlert: Bool
+    
+    var body: some View {
+        FrostedCard {
+            VStack(alignment: .leading, spacing: 16) {
+                Text("Encryption Test")
+                    .font(.headline)
+                    .foregroundColor(.white)
+                
+                VStack(alignment: .leading, spacing: 12) {
+                    Text("Test Text:")
+                        .font(.subheadline)
+                        .foregroundColor(.white.opacity(0.8))
+                    
+                    TextField("Enter text to encrypt", text: $testText)
+                        .textFieldStyle(RoundedBorderTextFieldStyle())
+                }
+                
+                HStack(spacing: 12) {
+                    Button("Encrypt") {
+                        encryptText()
+                    }
+                    .buttonStyle(PrimaryButtonStyle())
+                    
+                    Button("Decrypt") {
+                        decryptText()
+                    }
+                    .buttonStyle(SecondaryButtonStyle())
+                }
+                
+                if let data = encryptedData {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Encrypted (Base64):")
+                            .font(.caption)
+                            .foregroundColor(.white.opacity(0.8))
+                        
+                        Text(data.data.base64EncodedString())
+                            .font(.caption)
+                            .foregroundColor(.green)
+                            .lineLimit(3)
+                    }
+                }
+                
+                if !decryptedText.isEmpty {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Decrypted:")
+                            .font(.caption)
+                            .foregroundColor(.white.opacity(0.8))
+                        
+                        Text(decryptedText)
+                            .font(.caption)
+                            .foregroundColor(.blue)
+                    }
+                }
+            }
+            .padding()
+        }
+    }
+    
+    private func encryptText() {
+        do {
+            encryptedData = try SecurityManager.shared.encrypt(testText)
+            alertMessage = "Text encrypted successfully!"
+            showAlert = true
+        } catch {
+            alertMessage = "Encryption failed: \(error.localizedDescription)"
+            showAlert = true
+        }
+    }
+    
+    private func decryptText() {
+        guard let data = encryptedData else {
+            alertMessage = "No encrypted data available"
+            showAlert = true
+            return
+        }
+        
+        do {
+            decryptedText = try SecurityManager.shared.decryptToString(data)
+            alertMessage = "Text decrypted successfully!"
+            showAlert = true
+        } catch {
+            alertMessage = "Decryption failed: \(error.localizedDescription)"
+            showAlert = true
+        }
+    }
+}
+
+// MARK: - Biometric Test Card
+struct BiometricTestCard: View {
+    @Binding var isAuthenticating: Bool
+    @Binding var alertMessage: String
+    @Binding var showAlert: Bool
+    
+    var body: some View {
+        FrostedCard {
+            VStack(alignment: .leading, spacing: 16) {
+                Text("Biometric Authentication Test")
+                    .font(.headline)
+                    .foregroundColor(.white)
+                
+                VStack(alignment: .leading, spacing: 12) {
+                    HStack {
+                        Text("Available:")
+                        Spacer()
+                        Text(BiometricService.shared.isBiometricAvailable ? "Yes" : "No")
+                            .foregroundColor(BiometricService.shared.isBiometricAvailable ? .green : .red)
+                    }
+                    .foregroundColor(.white.opacity(0.8))
+                    
+                    HStack {
+                        Text("Type:")
+                        Spacer()
+                        Text(BiometricService.shared.biometricTypeName)
+                            .foregroundColor(.white.opacity(0.8))
+                    }
+                    .foregroundColor(.white.opacity(0.8))
+                }
+                
+                Button(action: testBiometric) {
+                    HStack {
+                        if isAuthenticating {
+                            ProgressView()
+                                .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                                .scaleEffect(0.8)
+                        } else {
+                            Image(systemName: BiometricService.shared.biometricIcon)
+                        }
+                        Text(isAuthenticating ? "Authenticating..." : "Test Authentication")
+                    }
+                }
+                .buttonStyle(PrimaryButtonStyle())
+                .disabled(isAuthenticating || !BiometricService.shared.isBiometricAvailable)
+            }
+            .padding()
+        }
+    }
+    
+    private func testBiometric() {
+        isAuthenticating = true
+        
+        Task {
+            do {
+                let success = try await BiometricService.shared.authenticate(reason: "Test biometric authentication")
+                await MainActor.run {
+                    isAuthenticating = false
+                    if success {
+                        alertMessage = "Biometric authentication successful!"
+                    } else {
+                        alertMessage = "Biometric authentication failed"
+                    }
+                    showAlert = true
+                }
+            } catch {
+                await MainActor.run {
+                    isAuthenticating = false
+                    alertMessage = "Biometric authentication error: \(error.localizedDescription)"
+                    showAlert = true
+                }
+            }
+        }
+    }
+}
+
+// MARK: - Security Settings Card
+struct SecuritySettingsCard: View {
+    @StateObject private var securityManager = SecurityManager.shared
+    
+    var body: some View {
+        FrostedCard {
+            VStack(alignment: .leading, spacing: 16) {
+                Text("Security Settings")
+                    .font(.headline)
+                    .foregroundColor(.white)
+                
+                VStack(spacing: 12) {
+                    HStack {
+                        VStack(alignment: .leading) {
+                            Text("Encryption Status")
+                                .foregroundColor(.white)
+                            Text("AES-GCM encryption enabled")
+                                .font(.caption)
+                                .foregroundColor(.white.opacity(0.7))
+                        }
+                        Spacer()
+                        Image(systemName: "checkmark.circle.fill")
+                            .foregroundColor(.green)
+                    }
+                    
+                    HStack {
+                        VStack(alignment: .leading) {
+                            Text("Key Storage")
+                                .foregroundColor(.white)
+                            Text("Secure Keychain storage")
+                                .font(.caption)
+                                .foregroundColor(.white.opacity(0.7))
+                        }
+                        Spacer()
+                        Image(systemName: "checkmark.circle.fill")
+                            .foregroundColor(.green)
+                    }
+                    
+                    Button("Reset Security Settings") {
+                        // Add reset functionality if needed
+                    }
+                    .buttonStyle(SecondaryButtonStyle())
+                }
+            }
+            .padding()
+        }
+    }
+}
+
+// MARK: - Button Styles
+struct PrimaryButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .foregroundColor(.white)
+            .padding(.horizontal, 20)
+            .padding(.vertical, 12)
+            .background(
+                RoundedRectangle(cornerRadius: 10)
+                    .fill(AtlasTheme.Colors.primary)
+                    .opacity(configuration.isPressed ? 0.8 : 1.0)
+            )
+            .scaleEffect(configuration.isPressed ? 0.95 : 1.0)
+            .animation(.easeInOut(duration: 0.1), value: configuration.isPressed)
+    }
+}
+
+struct SecondaryButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .foregroundColor(AtlasTheme.Colors.primary)
+            .padding(.horizontal, 20)
+            .padding(.vertical, 12)
+            .background(
+                RoundedRectangle(cornerRadius: 10)
+                    .stroke(AtlasTheme.Colors.primary, lineWidth: 1)
+                    .fill(Color.clear)
+                    .opacity(configuration.isPressed ? 0.8 : 1.0)
+            )
+            .scaleEffect(configuration.isPressed ? 0.95 : 1.0)
+            .animation(.easeInOut(duration: 0.1), value: configuration.isPressed)
+    }
+}
+
+// MARK: - Preview
+struct SecurityTestView_Previews: PreviewProvider {
+    static var previews: some View {
+        SecurityTestView()
+            .environmentObject(SecurityManager.shared)
+            .environmentObject(BiometricService.shared)
+    }
+}

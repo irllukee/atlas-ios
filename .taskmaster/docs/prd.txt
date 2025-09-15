@@ -1,0 +1,116 @@
+# Atlas - Personal Life OS iOS App
+
+## Project Overview
+Atlas is a comprehensive personal life operating system iOS app that helps users organize, track, and optimize their daily life. Built with SwiftUI and featuring a beautiful glassmorphism design with sky blue aesthetics, Atlas serves as a central hub for notes, tasks, journaling, mood tracking, and more.
+
+## Core Features
+
+### 1. Project Setup & Architecture Foundation
+- SwiftUI-based iOS app with MVVM architecture
+- Dependency injection container
+- Modular folder structure
+- Core theme system with glassmorphism design
+- Sky blue, airy, modern aesthetic
+
+### 2. Design System & UI Components
+- Frosted glass effects with transparency
+- Floating headers without backgrounds
+- Right-aligned feature cards
+- Bottom navigation with tab system
+- Reusable component library
+
+### 3. Core Data & Local Storage Setup
+- CoreData stack implementation
+- Repository pattern for data access
+- BaseEntity protocol for consistent data models
+- Note, Task, Journal, Mood, and Tag entities
+- Offline-first architecture
+
+### 4. Encryption & Security Layer
+- AES-GCM encryption for sensitive data
+- Secure key management
+- Data privacy protection
+- Biometric authentication support
+
+### 5. Notes Service & Voice Capture
+- Rich text note creation and editing
+- Voice-to-text transcription
+- Note categorization and tagging
+- Search and filtering capabilities
+
+### 6. Tasks Service & Reminders
+- Task creation, editing, and completion
+- Priority levels and due dates
+- Task categories and projects
+- Smart reminder system
+
+### 7. Calendar Service & EventKit Integration
+- Native calendar integration
+- Event creation and management
+- Reminder synchronization
+- Time blocking capabilities
+
+### 8. Journal Service & Gratitude Tracking
+- Daily journal entries
+- Dream journal functionality
+- Gratitude logging
+- Mood correlation tracking
+
+### 9. Mood Tracker Service & Analytics
+- Daily mood logging
+- Mood pattern analysis
+- Correlation with activities
+- Trend visualization
+
+### 10. Unified Dashboard Implementation
+- Centralized life overview
+- Quick access to all features
+- Personalized insights
+- Activity timeline
+
+### 11. Notification Service & Local Alerts
+- Smart notification scheduling
+- Context-aware reminders
+- Habit tracking notifications
+- Customizable alert preferences
+
+### 12. Cross-Linking & Data Relationships
+- Smart connections between notes, tasks, and journal entries
+- Related content suggestions
+- Contextual information display
+- Relationship visualization
+
+### 13. Offline-First Architecture
+- Complete offline functionality
+- Local data synchronization
+- Background processing
+- Data integrity validation
+
+### 14. Performance Optimization & Testing
+- Memory management optimization
+- Background processing efficiency
+- Unit and UI testing
+- Performance monitoring
+
+### 15. App Store Preparation & Launch
+- Final UI polish and testing
+- App Store assets and metadata
+- Privacy policy and terms
+- Release preparation
+
+## Technical Requirements
+- iOS 18.5+ compatibility
+- SwiftUI framework
+- CoreData for local storage
+- CryptoKit for encryption
+- EventKit for calendar integration
+- Speech framework for voice capture
+- UserNotifications for local alerts
+
+## Success Metrics
+- Smooth 60fps performance
+- Sub-second app launch time
+- 99.9% data integrity
+- Intuitive user experience
+- Beautiful, modern design
+- Comprehensive life tracking capabilities

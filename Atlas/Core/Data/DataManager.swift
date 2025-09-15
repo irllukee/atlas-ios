@@ -8,7 +8,7 @@ final class DataManager: ObservableObject {
     static let shared = DataManager()
     
     // MARK: - Core Data Stack
-    private let coreDataStack: CoreDataStack
+    let coreDataStack: CoreDataStack
     
     // MARK: - Repositories
     let noteRepository: NoteRepository
@@ -82,14 +82,12 @@ final class DataManager: ObservableObject {
     func deleteAllData() {
         isLoading = true
         
-        DispatchQueue.main.async {
-            do {
-                self.coreDataStack.deleteAllData()
+        coreDataStack.persistentContainer.performBackgroundTask { context in
+            self.coreDataStack.deleteAllData()
+            
+            DispatchQueue.main.async {
                 self.isLoading = false
                 self.refresh()
-            } catch {
-                self.isLoading = false
-                self.handleError(error)
             }
         }
     }
@@ -150,6 +148,7 @@ enum DataError: LocalizedError {
 }
 
 // MARK: - Environment Key
+@preconcurrency
 struct DataManagerKey: EnvironmentKey {
     static let defaultValue: DataManager = DataManager.shared
 }
