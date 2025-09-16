@@ -27,7 +27,7 @@ struct MonthGridView: View {
                 ForEach(getMonthDates(), id: \.self) { date in
                     MonthDayView(
                         date: date,
-                        events: viewModel.getEventsForDate(date),
+                        events: [],
                         isSelected: calendar.isDate(date, inSameDayAs: viewModel.selectedDate),
                         isToday: calendar.isDateInToday(date),
                         isCurrentMonth: calendar.isDate(date, equalTo: viewModel.selectedDate, toGranularity: .month)

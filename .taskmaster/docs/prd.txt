@@ -1,116 +1,111 @@
-# Atlas - Personal Life OS iOS App
+# Atlas - Personal Life OS iOS App - Product Requirements Document
 
 ## Project Overview
-Atlas is a comprehensive personal life operating system iOS app that helps users organize, track, and optimize their daily life. Built with SwiftUI and featuring a beautiful glassmorphism design with sky blue aesthetics, Atlas serves as a central hub for notes, tasks, journaling, mood tracking, and more.
+Atlas is a beautiful, modern iOS app built with SwiftUI that serves as a personal life operating system. The app features a stunning glassmorphism design with sky blue aesthetics and comprehensive life tracking capabilities.
 
-## Core Features
+## Current State Analysis
+The app currently has a solid foundation with:
+- Beautiful glassmorphism UI with frosted glass effects and sky blue theme
+- CoreData integration with repository pattern
+- Basic life modules: Notes, Tasks, Journal, Mood tracking
+- Modern design with floating headers and feature cards
+- Offline-first architecture with pure CoreData implementation
+- Swipe menu navigation system (recently implemented)
 
-### 1. Project Setup & Architecture Foundation
-- SwiftUI-based iOS app with MVVM architecture
-- Dependency injection container
-- Modular folder structure
-- Core theme system with glassmorphism design
-- Sky blue, airy, modern aesthetic
+## Core Features to Complete
 
-### 2. Design System & UI Components
-- Frosted glass effects with transparency
-- Floating headers without backgrounds
-- Right-aligned feature cards
-- Bottom navigation with tab system
-- Reusable component library
+### 1. Encryption & Security Implementation
+- Implement AES-GCM encryption for sensitive data (notes, journal entries)
+- Add biometric authentication (Face ID/Touch ID) for app access
+- Secure keychain storage for encryption keys
+- Data encryption/decryption service integration
+- Security settings and user preferences
 
-### 3. Core Data & Local Storage Setup
-- CoreData stack implementation
-- Repository pattern for data access
-- BaseEntity protocol for consistent data models
-- Note, Task, Journal, Mood, and Tag entities
-- Offline-first architecture
+### 2. Voice Capture & Speech-to-Text
+- Integrate Speech framework for voice input
+- Add voice recording capabilities to Notes and Journal
+- Implement speech-to-text conversion
+- Voice command support for quick actions
+- Audio playback for recorded voice notes
 
-### 4. Encryption & Security Layer
-- AES-GCM encryption for sensitive data
-- Secure key management
-- Data privacy protection
-- Biometric authentication support
+### 3. Calendar Integration & Event Management
+- EventKit integration for seamless scheduling
+- Calendar view with month/week/day views
+- Event creation, editing, and deletion
+- Time blocking functionality
+- Calendar sync with system calendar
+- Event reminders and notifications
 
-### 5. Notes Service & Voice Capture
-- Rich text note creation and editing
-- Voice-to-text transcription
-- Note categorization and tagging
-- Search and filtering capabilities
+### 4. Smart Notification System
+- Local notification scheduling
+- Smart reminders based on user patterns
+- Notification categories and settings
+- Background app refresh for notifications
+- Notification actions and quick responses
 
-### 6. Tasks Service & Reminders
-- Task creation, editing, and completion
-- Priority levels and due dates
-- Task categories and projects
-- Smart reminder system
+### 5. Analytics Dashboard & Insights
+- Data visualization for user patterns
+- Progress tracking and statistics
+- Trend analysis for habits and productivity
+- Export capabilities for data
+- Customizable dashboard widgets
 
-### 7. Calendar Service & EventKit Integration
-- Native calendar integration
-- Event creation and management
-- Reminder synchronization
-- Time blocking capabilities
+### 6. Cross-Linking & Smart Relationships
+- Smart relationships between notes, tasks, and journal entries
+- Tag system for content organization
+- Search functionality across all modules
+- Quick actions and shortcuts
+- Content recommendations
 
-### 8. Journal Service & Gratitude Tracking
-- Daily journal entries
-- Dream journal functionality
-- Gratitude logging
-- Mood correlation tracking
-
-### 9. Mood Tracker Service & Analytics
-- Daily mood logging
-- Mood pattern analysis
-- Correlation with activities
-- Trend visualization
-
-### 10. Unified Dashboard Implementation
-- Centralized life overview
-- Quick access to all features
-- Personalized insights
-- Activity timeline
-
-### 11. Notification Service & Local Alerts
-- Smart notification scheduling
-- Context-aware reminders
-- Habit tracking notifications
-- Customizable alert preferences
-
-### 12. Cross-Linking & Data Relationships
-- Smart connections between notes, tasks, and journal entries
-- Related content suggestions
-- Contextual information display
-- Relationship visualization
-
-### 13. Offline-First Architecture
-- Complete offline functionality
-- Local data synchronization
-- Background processing
-- Data integrity validation
-
-### 14. Performance Optimization & Testing
+### 7. Performance Optimization
+- Background processing for data operations
+- Efficient CoreData queries and caching
 - Memory management optimization
-- Background processing efficiency
-- Unit and UI testing
-- Performance monitoring
+- App launch time improvement
+- Battery usage optimization
 
-### 15. App Store Preparation & Launch
-- Final UI polish and testing
-- App Store assets and metadata
-- Privacy policy and terms
-- Release preparation
+### 8. App Store Preparation
+- Final UI polish and animations
+- App icon and launch screen
+- App Store metadata and screenshots
+- Privacy policy and terms of service
+- Beta testing and feedback integration
 
 ## Technical Requirements
-- iOS 18.5+ compatibility
-- SwiftUI framework
-- CoreData for local storage
-- CryptoKit for encryption
-- EventKit for calendar integration
-- Speech framework for voice capture
-- UserNotifications for local alerts
+
+### Architecture
+- Maintain MVVM pattern with clean separation of concerns
+- Repository pattern for data access abstraction
+- Dependency injection for modular architecture
+- CoreData stack with background processing
+
+### Design System
+- Consistent glassmorphism design throughout
+- Sky blue theme with proper contrast ratios
+- Smooth animations and micro-interactions
+- Accessibility compliance (VoiceOver, Dynamic Type)
+- Dark mode support
+
+### Performance
+- 60fps animations and transitions
+- Sub-second app launch time
+- Efficient memory usage
+- Background processing capabilities
+- Offline-first functionality
+
+### Security
+- End-to-end encryption for sensitive data
+- Secure keychain storage
+- Biometric authentication
+- Privacy-focused data handling
+- GDPR compliance considerations
 
 ## Success Metrics
-- Smooth 60fps performance
-- Sub-second app launch time
-- 99.9% data integrity
-- Intuitive user experience
-- Beautiful, modern design
-- Comprehensive life tracking capabilities
+- App Store approval and successful launch
+- User engagement with core features
+- Performance benchmarks met
+- Security audit passed
+- Positive user feedback and ratings
+
+## Timeline
+This is a comprehensive iOS app with multiple complex features. The development should be prioritized by user value and technical dependencies, with security and core functionality taking precedence over advanced features.

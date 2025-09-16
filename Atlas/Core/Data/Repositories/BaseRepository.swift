@@ -2,7 +2,7 @@ import Foundation
 import CoreData
 
 /// Base repository class providing common CRUD operations
-class BaseRepository<T: NSManagedObject> {
+class BaseRepository<T: NSManagedObject>: @unchecked Sendable {
     let context: NSManagedObjectContext
     
     init(context: NSManagedObjectContext) {

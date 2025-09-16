@@ -148,6 +148,7 @@ enum EncryptionError: LocalizedError {
 }
 
 // MARK: - Keychain Service
+@MainActor
 final class KeychainService {
     static let shared = KeychainService()
     

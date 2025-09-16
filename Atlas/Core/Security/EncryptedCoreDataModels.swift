@@ -42,6 +42,7 @@ extension Note {
     }
     
     /// Get decrypted content safely (non-async version for computed properties)
+    @MainActor
     var decryptedContent: String {
         get async {
             do {
@@ -94,6 +95,7 @@ extension JournalEntry {
     }
     
     /// Get decrypted content safely (non-async version for computed properties)
+    @MainActor
     var decryptedContent: String {
         get async {
             do {

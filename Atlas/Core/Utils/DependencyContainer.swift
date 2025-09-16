@@ -2,6 +2,7 @@ import Foundation
 import SwiftUI
 
 // MARK: - Dependency Container
+@MainActor
 final class DependencyContainer: ObservableObject {
     static let shared = DependencyContainer()
     
@@ -51,8 +52,8 @@ enum DependencyError: Error {
 }
 
 // MARK: - Environment Key
-struct DependenciesKey: EnvironmentKey {
-    static let defaultValue = DependencyContainer.shared
+struct DependenciesKey: @preconcurrency EnvironmentKey {
+    @MainActor static let defaultValue = DependencyContainer.shared
 }
 
 extension EnvironmentValues {

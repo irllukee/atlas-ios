@@ -13,7 +13,6 @@ A beautiful, modern iOS app built with SwiftUI that serves as your personal life
 
 ### 🚧 In Progress
 - **Encryption & Security**: AES-GCM encryption for sensitive data
-- **Voice Capture**: Speech-to-text for notes and journal entries
 - **Calendar Integration**: EventKit integration for seamless scheduling
 - **Notification System**: Smart local notifications and reminders
 

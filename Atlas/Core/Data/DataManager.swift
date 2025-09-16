@@ -148,9 +148,8 @@ enum DataError: LocalizedError {
 }
 
 // MARK: - Environment Key
-@preconcurrency
-struct DataManagerKey: EnvironmentKey {
-    static let defaultValue: DataManager = DataManager.shared
+struct DataManagerKey: @preconcurrency EnvironmentKey {
+    @MainActor static let defaultValue: DataManager = DataManager.shared
 }
 
 extension EnvironmentValues {

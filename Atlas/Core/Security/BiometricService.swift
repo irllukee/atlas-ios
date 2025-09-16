@@ -1,5 +1,5 @@
 import Foundation
-import LocalAuthentication
+@preconcurrency import LocalAuthentication
 import SwiftUI
 
 /// Biometric authentication service for Face ID and Touch ID

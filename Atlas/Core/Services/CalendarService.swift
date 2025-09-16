@@ -1,5 +1,5 @@
 import Foundation
-import EventKit
+@preconcurrency import EventKit
 import Combine
 
 enum CalendarPermissionStatus {
@@ -29,6 +29,7 @@ enum EventType: String, CaseIterable {
     }
 }
 
+@MainActor
 class CalendarService: ObservableObject {
     private let eventStore = EKEventStore()
     
@@ -51,18 +52,14 @@ class CalendarService: ObservableObject {
     func requestCalendarAccess() async -> Bool {
         do {
             let granted = try await eventStore.requestFullAccessToEvents()
-            await MainActor.run {
-                self.permissionStatus = granted ? .authorized : .denied
-            }
+            self.permissionStatus = granted ? .authorized : .denied
             if granted {
                 loadCalendars()
             }
             return granted
         } catch {
-            await MainActor.run {
-                self.permissionStatus = .denied
-                self.errorMessage = "Failed to request calendar access: \(error.localizedDescription)"
-            }
+            self.permissionStatus = .denied
+            self.errorMessage = "Failed to request calendar access: \(error.localizedDescription)"
             return false
         }
     }
@@ -110,10 +107,8 @@ class CalendarService: ObservableObject {
         let predicate = eventStore.predicateForEvents(withStart: dateRange.start, end: dateRange.end, calendars: calendars)
         let fetchedEvents = eventStore.events(matching: predicate)
         
-        DispatchQueue.main.async {
-            self.events = fetchedEvents.sorted { $0.startDate < $1.startDate }
-            self.isLoading = false
-        }
+        self.events = fetchedEvents.sorted { $0.startDate < $1.startDate }
+        self.isLoading = false
     }
     
     func loadEventsForDate(_ date: Date) {

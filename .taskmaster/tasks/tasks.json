@@ -1,0 +1,215 @@
+{
+  "version": "1.0.0",
+  "projectName": "Atlas - Personal Life OS",
+  "description": "A beautiful, modern iOS app built with SwiftUI that serves as a personal life operating system",
+  "tags": {
+    "master": {
+      "name": "master",
+      "description": "Main development tasks",
+      "createdAt": "2025-01-15T21:55:00Z",
+      "tasks": [
+        {
+          "id": 1,
+          "title": "Project Setup & Configuration",
+          "description": "Create Xcode project, configure settings, and establish folder structure.",
+          "status": "done",
+          "priority": "high",
+          "dependencies": [],
+          "details": "Set up a new Swift package based Xcode project named Atlas for iOS 17+. Use Swift 6, SwiftUI, Combine, MVVM, and dependency injection. Target iPhone portrait only for MVP. Enable Background Modes for remote notifications and background fetch. Add App Groups if needed for future widgets. Add capabilities: iCloud with CloudKit, Keychain sharing, Push notifications. Add privacy strings to Info.plist for Microphone, Speech Recognition, Calendars, Reminders. Establish folder layout: App/, Core/, Common/, Features/, Resources/, Models/, Tests/.",
+          "testStrategy": "Verify project compiles, all folders exist, and capabilities are enabled."
+        },
+        {
+          "id": 2,
+          "title": "Core Data Model & Persistence",
+          "description": "Implement Core Data model with CloudKit integration for persistence.",
+          "status": "pending",
+          "priority": "high",
+          "dependencies": [1],
+          "details": "Create Atlas.xcdatamodeld with Note, Task, JournalEntry, and MoodLog entities. Use NSPersistentCloudKitContainer named Atlas. Set remote change notification handling and automatic lightweight migration. Implement PersistenceController.",
+          "testStrategy": "Verify Core Data entities are created, data persists, and CloudKit syncs (when online)."
+        },
+        {
+          "id": 3,
+          "title": "Crypto & Keychain Services",
+          "description": "Implement secure key management and AES-GCM encryption/decryption.",
+          "status": "pending",
+          "priority": "high",
+          "dependencies": [1],
+          "details": "Implement KeychainService to generate and store a symmetric key (com.atlas.notes.symmetrickey) on first launch using CryptoKit. Implement CryptoService using AES.GCM to encrypt/decrypt Data and String, throwing descriptive errors and logging with Logger.",
+          "testStrategy": "Test key generation and loading, round-trip encryption/decryption, and error handling."
+        },
+        {
+          "id": 4,
+          "title": "Service Layer Architecture",
+          "description": "Define and implement service protocols for core functionalities.",
+          "status": "pending",
+          "priority": "medium",
+          "dependencies": [2, 3],
+          "details": "Define protocols for NotesService, TasksService, JournalService, MoodService, CalendarService, NotificationService, and SpeechService. Provide concrete implementations using Core Data, EventKit (read-only), UNUserNotificationCenter, and SFSpeechRecognizer.",
+          "testStrategy": "Verify service methods can be called and interact with underlying frameworks correctly."
+        },
+        {
+          "id": 5,
+          "title": "Dependency Injection Container",
+          "description": "Set up DIContainer for managing service singletons and previews.",
+          "status": "pending",
+          "priority": "medium",
+          "dependencies": [4],
+          "details": "Create DIContainer to hold references to service singletons. Pass container into environment using @Environment(\\.di) with a custom EnvironmentKey. Provide PreviewDIContainer with in-memory persistence for SwiftUI previews and tests.",
+          "testStrategy": "Verify services can be resolved from DIContainer and previews work with mocked data."
+        },
+        {
+          "id": 6,
+          "title": "Design System & Theme",
+          "description": "Establish a consistent design system with colors, typography, and style guide.",
+          "status": "pending",
+          "priority": "medium",
+          "dependencies": [1],
+          "details": "Define AtlasTheme with sky blue to indigo gradient background, accent sky blue, secondary lavender colors. Implement SF Pro or Inter typography using Font.system with semibold headers and regular body. Create a StyleGuide.",
+          "testStrategy": "Verify colors and fonts are applied consistently across UI components."
+        },
+        {
+          "id": 7,
+          "title": "Core UI Components",
+          "description": "Implement reusable UI components like FrostedCard, ProgressRing, buttons, and text fields.",
+          "status": "pending",
+          "priority": "medium",
+          "dependencies": [6],
+          "details": "Implement FrostedCard using .ultraThinMaterial, rounded 20, shadow radius 10, inner stroke with gradient overlay. Provide AtlasButton and AtlasTextField with consistent paddings and hit areas. Implement ProgressRing.",
+          "testStrategy": "Verify components render correctly and are reusable across the app."
+        },
+        {
+          "id": 8,
+          "title": "Dashboard Implementation",
+          "description": "Create a single scrollable dashboard with aggregated data and interactive elements.",
+          "status": "pending",
+          "priority": "high",
+          "dependencies": [4, 7],
+          "details": "Implement greeting header with date and subtle weather placeholder. Add Top Tasks section (up to 3 items, quick add). Notes recap (3 most recent). Journal prompt card with CTA. Mood quick log slider (1-10, Save). Weekly mood chart line. Use FrostedCard for sections. Implement parallax on scroll and small press scale. DashboardViewModel aggregates data via services and publishes DashboardState.",
+          "testStrategy": "Verify dashboard loads, displays data from services, and interactive elements work."
+        },
+        {
+          "id": 9,
+          "title": "Notes Feature",
+          "description": "Implement Notes CRUD functionality with encryption and voice capture.",
+          "status": "pending",
+          "priority": "high",
+          "dependencies": [3, 4, 7],
+          "details": "Create NotesListView (pinned/recent notes, search, voice capture button). NoteDetailView (title, encrypted body text editor). Voice to text uses SpeechService and inserts transcript. NotesViewModel handles data flow.",
+          "testStrategy": "Verify Notes CRUD, encryption/decryption, and voice capture integration."
+        },
+        {
+          "id": 10,
+          "title": "Tasks Feature",
+          "description": "Implement Tasks CRUD functionality with due dates and local notifications.",
+          "status": "pending",
+          "priority": "high",
+          "dependencies": [4, 7, 15],
+          "details": "Create TasksListView (Today/Tomorrow segments, add task field with optional due date). TaskDetailView (title, due date picker, notes, complete toggle). Local notification scheduling on save if dueAt exists. TasksViewModel handles data flow.",
+          "testStrategy": "Verify Tasks CRUD, due date handling, and notification scheduling."
+        },
+        {
+          "id": 11,
+          "title": "Journal Feature",
+          "description": "Implement encrypted journaling with daily prompts and gratitude tracking.",
+          "status": "pending",
+          "priority": "high",
+          "dependencies": [3, 4, 7],
+          "details": "Create JournalView (daily prompt, prior streak). JournalEntryView (encrypted body text editor, gratitude count stepper). JournalViewModel handles data flow. Implement journal resurfacing (past entry on dashboard if created on this day in a prior year).",
+          "testStrategy": "Verify Journal CRUD, encryption/decryption, and prompt/streak display."
+        },
+        {
+          "id": 12,
+          "title": "Mood Tracking",
+          "description": "Implement mood logging with a quick log slider and weekly trends chart.",
+          "status": "pending",
+          "priority": "medium",
+          "dependencies": [4, 7],
+          "details": "Create MoodQuickLogView (slider 1-10, Save). MoodTrendsView (weekly chart, last 7 entries). MoodViewModel handles data flow. Implement Haptics on mood save.",
+          "testStrategy": "Verify mood logging, chart display, and haptic feedback."
+        },
+        {
+          "id": 13,
+          "title": "Calendar Integration",
+          "description": "Integrate with EventKit to display today and tomorrow's events.",
+          "status": "pending",
+          "priority": "medium",
+          "dependencies": [4, 7],
+          "details": "Create CalendarPeekView (read-only events for today and tomorrow). CalendarViewModel handles data flow. Request Calendar permission from Calendar card only.",
+          "testStrategy": "Verify calendar permission flow and event display."
+        },
+        {
+          "id": 14,
+          "title": "Speech Recognition",
+          "description": "Implement voice-to-text functionality using SFSpeechRecognizer.",
+          "status": "pending",
+          "priority": "medium",
+          "dependencies": [4],
+          "details": "Implement SpeechService to transcribe audio to text. Request speech recognition permission only when the user uses the relevant feature.",
+          "testStrategy": "Verify speech recognition accuracy and permission flow."
+        },
+        {
+          "id": 15,
+          "title": "Notification System",
+          "description": "Implement local notification scheduling and authorization.",
+          "status": "pending",
+          "priority": "medium",
+          "dependencies": [4],
+          "details": "Implement NotificationService to request authorization and schedule local notifications. Request notifications permission only when the user uses the relevant feature.",
+          "testStrategy": "Verify notification authorization and scheduling."
+        },
+        {
+          "id": 16,
+          "title": "Unit Testing Suite",
+          "description": "Develop comprehensive unit tests for core services and functionalities.",
+          "status": "pending",
+          "priority": "high",
+          "dependencies": [2, 3, 4],
+          "details": "Create CryptoServiceTests (round trip encryption/decryption). NotesServiceTests (CRUD, encryption assertion). TasksServiceTests (create with due date, reminder scheduling mock). JournalServiceTests (create entry, gratitude count, fetch recent). Use in-memory Core Data store for tests.",
+          "testStrategy": "Ensure all critical service methods are covered and pass tests."
+        },
+        {
+          "id": 17,
+          "title": "Developer Experience",
+          "description": "Enhance developer experience with linting, logging, and preview providers.",
+          "status": "pending",
+          "priority": "low",
+          "dependencies": [1],
+          "details": "Add SwiftLint with a basic ruleset. Add a simple Logger wrapper using os.Logger. Provide PreviewDIContainer with in-memory persistence for SwiftUI previews and tests. Add a SeedDataCommand for debug builds to populate sample data.",
+          "testStrategy": "Verify SwiftLint runs, logs are generated, and previews work correctly."
+        },
+        {
+          "id": 18,
+          "title": "Performance Optimization",
+          "description": "Optimize app performance, memory usage, and battery efficiency.",
+          "status": "pending",
+          "priority": "medium",
+          "dependencies": [8, 9, 10, 11, 12, 13],
+          "details": "Profile app performance, optimize CoreData queries and caching, improve memory management, reduce app launch time, and optimize battery usage.",
+          "testStrategy": "Measure app launch time, memory footprint, and battery consumption."
+        },
+        {
+          "id": 19,
+          "title": "Accessibility & Localization",
+          "description": "Implement accessibility features and prepare for localization.",
+          "status": "pending",
+          "priority": "low",
+          "dependencies": [8, 9, 10, 11, 12, 13],
+          "details": "Add VoiceOver support, Dynamic Type, and other accessibility features. Prepare Localizable.strings for future localization.",
+          "testStrategy": "Test with VoiceOver and Dynamic Type enabled."
+        },
+        {
+          "id": 20,
+          "title": "Final Testing & App Store Submission",
+          "description": "Conduct comprehensive testing and prepare for App Store submission.",
+          "status": "pending",
+          "priority": "high",
+          "dependencies": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19],
+          "details": "Conduct comprehensive testing across all features, perform security audit, gather beta user feedback, and prepare App Store metadata (description, screenshots).",
+          "testStrategy": "Perform end-to-end testing, security audit, and App Store guideline compliance check."
+        }
+      ]
+    }
+  },
+  "currentTag": "master"
+}

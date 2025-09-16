@@ -162,10 +162,12 @@ struct TimeBlockingView: View {
     
     // MARK: - Actions
     private func findAvailableSlots() {
-        availableSlots = viewModel.findAvailableTimeSlots(
-            duration: duration,
-            workingHours: workingHours
-        )
+        _Concurrency.Task {
+            availableSlots = await viewModel.findAvailableTimeSlots(
+                duration: duration,
+                workingHours: workingHours
+            )
+        }
     }
     
     private func createTimeBlock() {

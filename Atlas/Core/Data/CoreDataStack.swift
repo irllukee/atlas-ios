@@ -2,6 +2,7 @@ import Foundation
 import CoreData
 
 // MARK: - CoreDataStack
+@MainActor
 final class CoreDataStack {
     static let shared = CoreDataStack() // Singleton
 

@@ -46,6 +46,7 @@ enum TaskFilter: String, CaseIterable {
     case highPriority = "High Priority"
 }
 
+@MainActor
 class TasksService: ObservableObject {
     private let taskRepository: TaskRepository
     private let dataManager: DataManager

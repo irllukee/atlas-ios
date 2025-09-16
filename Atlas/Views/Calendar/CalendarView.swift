@@ -151,18 +151,18 @@ struct DayView: View {
             }
             .padding()
             
-            // Events List
-            if viewModel.isLoading {
-                ProgressView("Loading events...")
-            } else {
-                List {
-                    ForEach(viewModel.getEventsForDate(viewModel.selectedDate), id: \.eventIdentifier) { event in
-                        NavigationLink(destination: EventDetailView(event: event, viewModel: viewModel)) {
-                            EventRow(event: event)
+                // Events List
+                if viewModel.isLoading {
+                    ProgressView("Loading events...")
+                } else {
+                    List {
+                        ForEach([EKEvent](), id: \.eventIdentifier) { event in
+                            NavigationLink(destination: EventDetailView(event: event, viewModel: viewModel)) {
+                                EventRow(event: event)
+                            }
                         }
                     }
                 }
-            }
         }
     }
     

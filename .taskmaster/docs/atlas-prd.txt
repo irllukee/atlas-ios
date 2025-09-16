@@ -1,0 +1,375 @@
+**Cursor Prompt: Atlas iOS App Scaffold**
+
+You are an expert iOS engineer. Create a new Swift package based Xcode project named **Atlas** for iOS 17+. Use Swift 6, SwiftUI, Combine, MVVM, and dependency injection. Persistence with Core Data using `NSPersistentCloudKitContainer`. Local encryption for notes and journal entries using CryptoKit AES.GCM with a symmetric key stored in Keychain. Offline first. Sync when online. Target iPhone portrait only for MVP.
+
+### 0) Project setup
+
+* App Name: Atlas
+* Minimum iOS: 17.0
+* Swift Tools: 6.0
+* Features grouped under `Features/`
+* Shared code under `Core/` and `Common/`
+* Unit test target: AtlasTests
+* Bundle identifiers with placeholder
+* Enable Background Modes for remote notifications and background fetch
+* Add App Groups if needed for future widgets but do not implement widgets yet
+* Capabilities: iCloud with CloudKit, Keychain sharing, Push notifications
+* Add privacy strings to Info.plist for Microphone, Speech Recognition, Calendars, Reminders
+
+### 1) Folder layout
+
+```
+App/
+  AtlasApp.swift
+  AppDelegate.swift
+  SceneDelegate.swift
+  DIContainer.swift
+
+Core/
+  Theme/
+    Colors.swift
+    Typography.swift
+    StyleGuide.swift
+  Storage/
+    PersistenceController.swift
+    CryptoService.swift
+    KeychainService.swift
+  Services/
+    NotesService.swift
+    TasksService.swift
+    JournalService.swift
+    MoodService.swift
+    CalendarService.swift
+    NotificationService.swift
+    SpeechService.swift
+  Utils/
+    DateUtils.swift
+    Haptics.swift
+    ResultBuilders.swift
+    Logger.swift
+
+Common/
+  Components/
+    FrostedCard.swift
+    ProgressRing.swift
+    SectionHeader.swift
+    AtlasTextField.swift
+    AtlasButton.swift
+  Charts/
+    MoodLineChart.swift
+
+Features/
+  Dashboard/
+    DashboardView.swift
+    DashboardViewModel.swift
+  Notes/
+    NotesListView.swift
+    NoteDetailView.swift
+    NotesViewModel.swift
+    Models/NoteModel.swift
+  Tasks/
+    TasksListView.swift
+    TaskDetailView.swift
+    TasksViewModel.swift
+    Models/TaskModel.swift
+  Calendar/
+    CalendarPeekView.swift
+    CalendarViewModel.swift
+  Journal/
+    JournalView.swift
+    JournalEntryView.swift
+    JournalViewModel.swift
+    Models/JournalEntryModel.swift
+  Mood/
+    MoodQuickLogView.swift
+    MoodTrendsView.swift
+    MoodViewModel.swift
+    Models/MoodLogModel.swift
+
+Resources/
+  Assets.xcassets
+  Localizable.strings
+
+Models/
+  CoreData/
+    Atlas.xcdatamodeld  (entities listed below)
+
+Tests/
+  AtlasTests/
+    NotesServiceTests.swift
+    TasksServiceTests.swift
+    JournalServiceTests.swift
+    CryptoServiceTests.swift
+```
+
+### 2) Core Data model
+
+Create `Atlas.xcdatamodeld` with entities:
+
+* `Note`
+
+  * id: UUID
+  * createdAt: Date
+  * updatedAt: Date
+  * title: String
+  * bodyEncrypted: Data
+  * isPinned: Bool
+* `Task`
+
+  * id: UUID
+  * createdAt: Date
+  * dueAt: Date? optional
+  * title: String
+  * isCompleted: Bool
+  * notes: String? optional
+* `JournalEntry`
+
+  * id: UUID
+  * createdAt: Date
+  * bodyEncrypted: Data
+  * gratitudeCount: Int16
+  * resurfacedAt: Date? optional
+* `MoodLog`
+
+  * id: UUID
+  * createdAt: Date
+  * score: Int16  (1 to 10)
+  * note: String? optional
+  * journalEntryID: UUID? optional
+
+Use `NSPersistentCloudKitContainer` named `Atlas`. Set remote change notification handling and automatic lightweight migration.
+
+### 3) Crypto and Key management
+
+Implement `KeychainService` that:
+
+* Generates one symmetric key on first launch using CryptoKit
+* Stores key data under `com.atlas.notes.symmetrickey`
+* Provides `loadKey()` and `ensureKey()` APIs
+
+Implement `CryptoService` that:
+
+* Uses AES.GCM to encrypt and decrypt Data
+* `encryptString(_:) -> Data`
+* `decryptToString(_:) -> String`
+* Throw descriptive errors and log them with `Logger`
+
+Notes and JournalEntry bodies are stored encrypted. ViewModels handle decryption on demand.
+
+### 4) Services protocols and defaults
+
+Define protocols so DI is clean.
+
+```swift
+protocol NotesServiceProtocol {
+  func create(title: String, body: String) async throws -> Note
+  func update(id: UUID, title: String?, body: String?) async throws
+  func delete(id: UUID) async throws
+  func fetchRecent(limit: Int) async throws -> [Note]
+}
+
+protocol TasksServiceProtocol {
+  func create(title: String, dueAt: Date?) async throws -> Task
+  func toggleComplete(id: UUID) async throws
+  func scheduleReminder(for task: Task) async throws
+  func fetchTodayAndTomorrow() async throws -> [Task]
+}
+
+protocol JournalServiceProtocol {
+  func dailyPrompt() -> String
+  func createEntry(body: String, gratitudeCount: Int) async throws -> JournalEntry
+  func fetchRecent(limit: Int) async throws -> [JournalEntry]
+}
+
+protocol MoodServiceProtocol {
+  func log(score: Int, note: String?) async throws -> MoodLog
+  func fetchWeek() async throws -> [MoodLog]
+}
+
+protocol CalendarServiceProtocol {
+  func requestAccess() async throws
+  func fetchTodayAndTomorrow() async throws -> [EKEvent]
+}
+
+protocol NotificationServiceProtocol {
+  func requestAuthorization() async throws
+  func scheduleLocal(title: String, body: String, date: Date) async throws
+}
+
+protocol SpeechServiceProtocol {
+  func transcribe() async throws -> String
+}
+```
+
+Provide concrete implementations that use Core Data, EventKit read only, UNUserNotificationCenter, and `SFSpeechRecognizer`.
+
+### 5) Dependency injection
+
+Create `DIContainer` that holds references to service singletons. Pass container into environment using `@Environment(\.di)` with a custom EnvironmentKey. Provide `PreviewDIContainer` with in-memory persistence for SwiftUI previews and tests.
+
+### 6) Dashboard
+
+Create a single scrollable dashboard that shows:
+
+* Greeting header with date and subtle weather placeholder text
+* Top Tasks section with up to 3 items and a quick add button
+* Notes recap showing 3 most recent
+* Journal prompt card with CTA to write
+* Mood quick log slider with 1 to 10 and Save
+* Weekly mood chart line using `Charts` or a simple custom Path
+
+Use `FrostedCard` component for each section. Implement parallax on scroll and a small press scale.
+
+`DashboardViewModel` aggregates data via services and publishes `DashboardState`.
+
+### 7) Design system
+
+* Colors: sky blue to indigo gradient background. Accent sky blue. Secondary lavender.
+* Typography: SF Pro or Inter using `Font.system` with semibold headers and regular body.
+* `FrostedCard` uses `.ultraThinMaterial`, rounded 20, shadow radius 10, inner stroke with gradient overlay.
+* Provide `AtlasButton` and `AtlasTextField` with consistent paddings and hit areas.
+
+### 8) Feature views
+
+**Notes**
+
+* NotesListView: list of pinned and recent notes, search field, voice capture button
+* NoteDetailView: title field and body text editor
+* Voice to text uses `SpeechService` and inserts transcript
+
+**Tasks**
+
+* TasksListView: Today and Tomorrow segments, add task field with optional due date
+* TaskDetailView: title, due date picker, notes, complete toggle
+* Local notification scheduling on save if dueAt exists
+
+**Calendar**
+
+* CalendarPeekView: read only events for today and tomorrow, requires permission
+
+**Journal**
+
+* JournalView: shows daily prompt and prior streak
+* JournalEntryView: encrypted body text editor, gratitude count stepper
+
+**Mood**
+
+* MoodQuickLogView: slider 1 to 10 with Save
+* MoodTrendsView: shows weekly chart and last 7 entries
+
+### 9) Acceptance criteria encoded as UI tests checklist
+
+* Dashboard loads in under 300 ms after cold start on iPhone 14 simulator
+* Notes CRUD works offline and syncs when online
+* Journal entries encrypt before save. Decrypt visible only when user opens an entry
+* Tasks reminders trigger local notifications at dueAt
+* Calendar shows events for today and tomorrow after permission grant
+* Mood slider logs in one tap and chart updates
+* All features respect light and dark mode
+
+### 10) Sample code stubs
+
+Create minimal implementations. Example FrostedCard:
+
+```swift
+import SwiftUI
+
+struct FrostedCard<Content: View>: View {
+  let title: String
+  let subtitle: String?
+  @ViewBuilder var content: Content
+
+  var body: some View {
+    VStack(alignment: .leading, spacing: 12) {
+      HStack {
+        Text(title).font(.title3).fontWeight(.semibold)
+        Spacer()
+        if let subtitle { Text(subtitle).font(.footnote).opacity(0.7) }
+      }
+      content
+    }
+    .padding(16)
+    .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+    .overlay(
+      RoundedRectangle(cornerRadius: 20, style: .continuous)
+        .strokeBorder(.white.opacity(0.15))
+    )
+    .shadow(radius: 10)
+    .padding(.horizontal)
+    .contentShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+    .scaleEffectOnPress()
+  }
+}
+
+extension View {
+  func scaleEffectOnPress() -> some View {
+    self.buttonStyle(.plain)
+      .pressAction {
+        // simple haptic or animation hook
+      }
+  }
+}
+```
+
+Persistence bootstrap:
+
+```swift
+final class PersistenceController {
+  static let shared = PersistenceController()
+
+  let container: NSPersistentCloudKitContainer
+
+  init(inMemory: Bool = false) {
+    container = NSPersistentCloudKitContainer(name: "Atlas")
+    if inMemory {
+      container.persistentStoreDescriptions.first?.url = URL(fileURLWithPath: "/dev/null")
+    }
+    container.viewContext.automaticallyMergesChangesFromParent = true
+    container.viewContext.mergePolicy = NSMergeByPropertyObjectTrumpMergePolicy
+    container.loadPersistentStores { _, error in
+      if let error { fatalError("Unresolved error: \(error)") }
+    }
+  }
+}
+```
+
+### 11) Unit tests to include
+
+* `CryptoServiceTests`: round trip encryption and decryption
+* `NotesServiceTests`: create, update, fetch recent, deletion, encryption assertion
+* `TasksServiceTests`: create with due date, reminder scheduling mock
+* `JournalServiceTests`: create entry, gratitude count, fetch recent
+  Use in-memory Core Data store for tests.
+
+### 12) Permissions and app flows
+
+* On first launch, ask for notifications and speech only when the user uses the relevant feature
+* Calendar permission requested from Calendar card only
+* Show gentle rationale screens before system prompts
+
+### 13) Developer experience
+
+* Add SwiftLint with a basic ruleset
+* Add a simple `Logger` wrapper using `os.Logger`
+* Provide preview providers with mocked DI services and seeded in-memory data
+* Add a `SeedDataCommand` for debug builds to populate sample notes, tasks, journal entries, and mood logs
+
+### 14) Small product polish
+
+* Journal resurfacing: show one past entry on dashboard if created on this day in a prior year
+* Gratitude streak ring in Journal card using `ProgressRing`
+* Haptics on task complete and mood save
+
+### 15) Deliverables
+
+* Compile ready project with all files and stubs
+* One working screen for Dashboard with real data pipelines for Notes fetch, Tasks fetch, Calendar peek, Journal prompt, Mood quick log
+* At least 4 unit tests passing
+* Instructions in README on how to run, what capabilities to turn on, and known limitations
+
+Create the project now and output the file tree and key code snippets you wrote.
+
+---
+
+If you want, I can also generate a README and a set of Git commit messages for the first ten commits.
+

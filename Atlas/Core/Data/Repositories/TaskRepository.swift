@@ -2,7 +2,7 @@ import Foundation
 import CoreData
 
 /// Repository for managing Task entities
-class TaskRepository: BaseRepository<Task> {
+class TaskRepository: BaseRepository<Task>, @unchecked Sendable {
     
     // MARK: - Custom Queries
     func fetchCompleted() -> [Task] {

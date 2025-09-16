@@ -2,7 +2,7 @@ import Foundation
 import CoreData
 
 /// Repository for managing Note entities
-class NoteRepository: BaseRepository<Note> {
+class NoteRepository: BaseRepository<Note>, @unchecked Sendable {
     
     // MARK: - Custom Queries
     func fetchByTitle(_ title: String) -> [Note] {

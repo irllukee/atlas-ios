@@ -27,7 +27,7 @@ struct WeekGridView: View {
                 ForEach(getWeekDates(), id: \.self) { date in
                     WeekDayView(
                         date: date,
-                        events: viewModel.getEventsForDate(date),
+                        events: [],
                         isSelected: calendar.isDate(date, inSameDayAs: viewModel.selectedDate),
                         isToday: calendar.isDateInToday(date)
                     ) {
