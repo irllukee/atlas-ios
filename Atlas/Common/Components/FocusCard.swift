@@ -72,23 +72,27 @@ struct FocusCard: View {
             }
         }
         .scaleEffect(isPressed ? 0.98 : 1.0)
-        .animation(.spring(response: 0.3, dampingFraction: 0.7), value: isPressed)
+        .animation(AtlasTheme.Animations.spring, value: isPressed)
         .onTapGesture {
-            withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+            AtlasTheme.Haptics.light()
+            withAnimation(AtlasTheme.Animations.snappy) {
                 isPressed = true
             }
             
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                withAnimation(AtlasTheme.Animations.snappy) {
                     isPressed = false
                 }
             }
         }
         .onAppear {
-            withAnimation(.easeInOut(duration: 1.2).delay(0.2)) {
+            withAnimation(AtlasTheme.Animations.gentle.delay(0.2)) {
                 progressAnimation = progress
             }
         }
+        .accessibilityLabel("\(title): \(Int(progress * 100))% complete")
+        .accessibilityHint(description)
+        .accessibilityAddTraits(.isButton)
     }
 }
 

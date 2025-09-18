@@ -40,7 +40,7 @@ struct PersistenceController {
     private static func createSampleData(in context: NSManagedObjectContext) {
         // Create sample notes
         let note1 = Note(context: context)
-        note1.id = UUID()
+        note1.uuid = UUID()
         note1.title = "Welcome to Atlas"
         note1.content = "This is your first note in Atlas. You can create, edit, and organize your notes here."
         // note1.category = "Getting Started" // Note: Using tags instead of category
@@ -49,7 +49,7 @@ struct PersistenceController {
         note1.isEncrypted = false
         
         let note2 = Note(context: context)
-        note2.id = UUID()
+        note2.uuid = UUID()
         note2.title = "Meeting Notes"
         note2.content = "## Project Planning Meeting\n\n**Date:** Today\n**Attendees:** Team\n\n### Agenda\n- Review project status\n- Plan next sprint\n- Discuss blockers\n\n### Action Items\n- [ ] Update documentation\n- [ ] Review code changes"
         // note2.category = "Work" // Note: Using tags instead of category
@@ -58,7 +58,7 @@ struct PersistenceController {
         note2.isEncrypted = false
         
         let note3 = Note(context: context)
-        note3.id = UUID()
+        note3.uuid = UUID()
         note3.title = "Private Thoughts"
         note3.content = "This is a private note with sensitive information."
         // note3.category = "Private" // Note: Using tags instead of category
@@ -68,7 +68,7 @@ struct PersistenceController {
         
         // Create sample tasks
         let task1 = Task(context: context)
-        task1.id = UUID()
+        task1.uuid = UUID()
         task1.title = "Complete project documentation"
         task1.notes = "Update the README and API documentation"
         task1.createdAt = Date()
@@ -78,7 +78,7 @@ struct PersistenceController {
         task1.dueDate = Calendar.current.date(byAdding: .day, value: 3, to: Date())
         
         let task2 = Task(context: context)
-        task2.id = UUID()
+        task2.uuid = UUID()
         task2.title = "Review code changes"
         task2.notes = "Review the latest pull requests"
         task2.createdAt = Calendar.current.date(byAdding: .day, value: -1, to: Date())

@@ -6,6 +6,8 @@ enum AppView: CaseIterable {
     case tasks
     case journal
     case calendar
+    case analytics
+    case brainstormGalaxy
     case profile
 }
 

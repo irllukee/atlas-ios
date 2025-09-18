@@ -43,31 +43,78 @@ struct AtlasTheme {
         static let tertiaryText = Color.white.opacity(0.6)
         static let textOnPrimary = Color.white
         
-        // Glassmorphism Colors
-        static let glassBackground = Color.white.opacity(0.1)
-        static let glassBorder = Color.white.opacity(0.2)
-        static let glassShadow = Color.black.opacity(0.1)
+        // Enhanced Glassmorphism Colors
+        static let glassBackground = Color.white.opacity(0.12)
+        static let glassBackgroundLight = Color.white.opacity(0.08)
+        static let glassBackgroundHeavy = Color.white.opacity(0.18)
+        static let glassBorder = Color.white.opacity(0.25)
+        static let glassBorderLight = Color.white.opacity(0.15)
+        static let glassBorderHeavy = Color.white.opacity(0.35)
+        static let glassShadow = Color.black.opacity(0.15)
+        static let glassShadowLight = Color.black.opacity(0.08)
+        static let glassShadowHeavy = Color.black.opacity(0.25)
+        
+        // Gradient Overlays for Enhanced Glass Effect
+        static let glassGradient = LinearGradient(
+            colors: [
+                Color.white.opacity(0.2),
+                Color.white.opacity(0.05),
+                Color.clear
+            ],
+            startPoint: .topLeading,
+            endPoint: .bottomTrailing
+        )
         
         // Health App Colors (for metric cards)
         static let strain = Color(red: 1.0, green: 0.4, blue: 0.4)
         static let recovery = Color(red: 0.2, green: 0.8, blue: 0.4)
         static let sleep = Color(red: 0.4, green: 0.6, blue: 1.0)
         static let nutrition = Color(red: 1.0, green: 0.8, blue: 0.2)
+        
+        // Enhanced Semantic Colors
+        static let positive = Color(red: 0.2, green: 0.8, blue: 0.4)
+        static let negative = Color(red: 1.0, green: 0.4, blue: 0.4)
+        static let neutral = Color(red: 0.6, green: 0.6, blue: 0.6)
+        static let highlight = Color(red: 0.6, green: 0.9, blue: 1.0)
+        
+        // Status Colors
+        static let online = Color(red: 0.2, green: 0.8, blue: 0.4)
+        static let offline = Color(red: 0.6, green: 0.6, blue: 0.6)
+        static let pending = Color(red: 1.0, green: 0.8, blue: 0.2)
+        static let completed = Color(red: 0.2, green: 0.7, blue: 1.0)
     }
     
-    // MARK: - Typography
+    // MARK: - Enhanced Typography
     struct Typography {
+        // Display Styles
+        static let display = Font.system(size: 40, weight: .bold, design: .rounded)
         static let largeTitle = Font.system(size: 34, weight: .bold, design: .rounded)
         static let title = Font.system(size: 28, weight: .bold, design: .rounded)
         static let title2 = Font.system(size: 22, weight: .bold, design: .rounded)
         static let title3 = Font.system(size: 20, weight: .semibold, design: .rounded)
+        
+        // Body Styles
         static let headline = Font.system(size: 17, weight: .semibold, design: .rounded)
         static let body = Font.system(size: 17, weight: .regular, design: .rounded)
+        static let bodyEmphasized = Font.system(size: 17, weight: .medium, design: .rounded)
         static let callout = Font.system(size: 16, weight: .regular, design: .rounded)
         static let subheadline = Font.system(size: 15, weight: .regular, design: .rounded)
+        
+        // Small Styles
         static let footnote = Font.system(size: 13, weight: .regular, design: .rounded)
         static let caption = Font.system(size: 12, weight: .regular, design: .rounded)
         static let caption2 = Font.system(size: 11, weight: .regular, design: .rounded)
+        
+        // Special Styles
+        static let button = Font.system(size: 16, weight: .semibold, design: .rounded)
+        static let label = Font.system(size: 14, weight: .medium, design: .rounded)
+        static let code = Font.system(size: 14, weight: .regular, design: .monospaced)
+        static let quote = Font.system(size: 16, weight: .regular, design: .serif)
+        
+        // Weight Variants
+        static func custom(size: CGFloat, weight: Font.Weight, design: Font.Design = .rounded) -> Font {
+            return Font.system(size: size, weight: weight, design: design)
+        }
     }
     
     // MARK: - Spacing
@@ -104,6 +151,53 @@ struct AtlasTheme {
         static let smooth = SwiftUI.Animation.easeInOut(duration: 0.3)
         static let spring = SwiftUI.Animation.spring(response: 0.5, dampingFraction: 0.8)
         static let bouncy = SwiftUI.Animation.spring(response: 0.4, dampingFraction: 0.6)
+        static let gentle = SwiftUI.Animation.easeOut(duration: 0.4)
+        static let snappy = SwiftUI.Animation.spring(response: 0.3, dampingFraction: 0.9)
+    }
+    
+    // MARK: - Haptic Feedback
+    struct Haptics {
+        @MainActor
+        static func light() {
+            let impactFeedback = UIImpactFeedbackGenerator(style: .light)
+            impactFeedback.impactOccurred()
+        }
+        
+        @MainActor
+        static func medium() {
+            let impactFeedback = UIImpactFeedbackGenerator(style: .medium)
+            impactFeedback.impactOccurred()
+        }
+        
+        @MainActor
+        static func heavy() {
+            let impactFeedback = UIImpactFeedbackGenerator(style: .heavy)
+            impactFeedback.impactOccurred()
+        }
+        
+        @MainActor
+        static func success() {
+            let notificationFeedback = UINotificationFeedbackGenerator()
+            notificationFeedback.notificationOccurred(.success)
+        }
+        
+        @MainActor
+        static func warning() {
+            let notificationFeedback = UINotificationFeedbackGenerator()
+            notificationFeedback.notificationOccurred(.warning)
+        }
+        
+        @MainActor
+        static func error() {
+            let notificationFeedback = UINotificationFeedbackGenerator()
+            notificationFeedback.notificationOccurred(.error)
+        }
+        
+        @MainActor
+        static func selection() {
+            let selectionFeedback = UISelectionFeedbackGenerator()
+            selectionFeedback.selectionChanged()
+        }
     }
 }
 
@@ -115,40 +209,128 @@ struct Shadow {
     let y: CGFloat
 }
 
-// MARK: - Glassmorphism Modifier
+// MARK: - Enhanced Glassmorphism Modifier
 struct GlassmorphismModifier: ViewModifier {
     let style: GlassStyle
+    let cornerRadius: CGFloat
     
     enum GlassStyle {
         case light
         case medium
         case heavy
+        case floating
+        case card
+    }
+    
+    init(style: GlassStyle = .medium, cornerRadius: CGFloat = AtlasTheme.CornerRadius.medium) {
+        self.style = style
+        self.cornerRadius = cornerRadius
     }
     
     func body(content: Content) -> some View {
         content
             .background(
-                RoundedRectangle(cornerRadius: AtlasTheme.CornerRadius.medium)
-                    .fill(AtlasTheme.Colors.glassBackground)
-                    .background(
-                        RoundedRectangle(cornerRadius: AtlasTheme.CornerRadius.medium)
-                            .stroke(AtlasTheme.Colors.glassBorder, lineWidth: 1)
-                    )
-                    .blur(radius: blurRadius)
+                ZStack {
+                    // Main glass background
+                    RoundedRectangle(cornerRadius: cornerRadius)
+                        .fill(backgroundFill)
+                    
+                    // Gradient overlay for enhanced glass effect
+                    RoundedRectangle(cornerRadius: cornerRadius)
+                        .fill(AtlasTheme.Colors.glassGradient)
+                    
+                    // Border
+                    RoundedRectangle(cornerRadius: cornerRadius)
+                        .stroke(borderColor, lineWidth: borderWidth)
+                }
+                .shadow(color: shadowColor, radius: shadowRadius, x: 0, y: shadowOffset)
+                .shadow(color: shadowColor.opacity(0.3), radius: shadowRadius * 2, x: 0, y: shadowOffset * 2)
             )
     }
     
-    private var blurRadius: CGFloat {
+    private var backgroundFill: some ShapeStyle {
         switch style {
-        case .light: return 10
-        case .medium: return 20
-        case .heavy: return 30
+        case .light:
+            return AtlasTheme.Colors.glassBackgroundLight
+        case .medium:
+            return AtlasTheme.Colors.glassBackground
+        case .heavy:
+            return AtlasTheme.Colors.glassBackgroundHeavy
+        case .floating:
+            return AtlasTheme.Colors.glassBackground.opacity(0.8)
+        case .card:
+            return AtlasTheme.Colors.glassBackground
+        }
+    }
+    
+    private var borderColor: Color {
+        switch style {
+        case .light:
+            return AtlasTheme.Colors.glassBorderLight
+        case .medium:
+            return AtlasTheme.Colors.glassBorder
+        case .heavy:
+            return AtlasTheme.Colors.glassBorderHeavy
+        case .floating:
+            return AtlasTheme.Colors.glassBorder.opacity(0.6)
+        case .card:
+            return AtlasTheme.Colors.glassBorder
+        }
+    }
+    
+    private var borderWidth: CGFloat {
+        switch style {
+        case .light, .medium, .card:
+            return 1.0
+        case .heavy:
+            return 1.5
+        case .floating:
+            return 0.5
+        }
+    }
+    
+    private var shadowColor: Color {
+        switch style {
+        case .light:
+            return AtlasTheme.Colors.glassShadowLight
+        case .medium, .card:
+            return AtlasTheme.Colors.glassShadow
+        case .heavy:
+            return AtlasTheme.Colors.glassShadowHeavy
+        case .floating:
+            return AtlasTheme.Colors.glassShadow.opacity(0.3)
+        }
+    }
+    
+    private var shadowRadius: CGFloat {
+        switch style {
+        case .light:
+            return 6
+        case .medium, .card:
+            return 12
+        case .heavy:
+            return 20
+        case .floating:
+            return 24
+        }
+    }
+    
+    private var shadowOffset: CGFloat {
+        switch style {
+        case .light:
+            return 3
+        case .medium, .card:
+            return 6
+        case .heavy:
+            return 10
+        case .floating:
+            return 12
         }
     }
 }
 
 extension View {
-    func glassmorphism(style: GlassmorphismModifier.GlassStyle = .medium) -> some View {
-        self.modifier(GlassmorphismModifier(style: style))
+    func glassmorphism(style: GlassmorphismModifier.GlassStyle = .medium, cornerRadius: CGFloat = AtlasTheme.CornerRadius.medium) -> some View {
+        self.modifier(GlassmorphismModifier(style: style, cornerRadius: cornerRadius))
     }
 }

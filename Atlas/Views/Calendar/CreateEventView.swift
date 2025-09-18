@@ -18,8 +18,13 @@ struct CreateEventView: View {
     // MARK: - Body
     var body: some View {
         NavigationView {
-            VStack(spacing: 0) {
-                Form {
+            ZStack {
+                // Background
+                AtlasTheme.Colors.background
+                    .ignoresSafeArea()
+                
+                VStack(spacing: 0) {
+                    Form {
                     Section("Event Details") {
                         TextField("Event Title", text: $title)
                             .textFieldStyle(RoundedBorderTextFieldStyle())
@@ -94,8 +99,9 @@ struct CreateEventView: View {
                     }
                 }
                 
-                // Bottom Actions
-                bottomActions
+                    // Bottom Actions
+                    bottomActions
+                }
             }
             .navigationTitle("New Event")
             .navigationBarTitleDisplayMode(.inline)

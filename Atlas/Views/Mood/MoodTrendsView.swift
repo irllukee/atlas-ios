@@ -141,8 +141,18 @@ struct MoodTrendsView: View {
                         }
                     } else {
                         // Fallback for iOS 15
-                        MoodTrendChart(moodTrend: viewModel.getMoodTrend(days: selectedTimeframe.days))
-                            .frame(height: 200)
+                        AnalyticsLineChart(
+                            data: viewModel.getMoodTrend(days: selectedTimeframe.days).enumerated().compactMap { index, moodLevel in
+                                guard let mood = moodLevel else { return nil }
+                                let calendar = Calendar.current
+                                let date = calendar.date(byAdding: .day, value: index, to: calendar.date(byAdding: .day, value: -selectedTimeframe.days, to: Date())!)!
+                                return ChartDataPoint(date: date, value: Double(mood.rawValue))
+                            },
+                            title: "Mood Trend",
+                            yAxisLabel: "Mood",
+                            color: .blue
+                        )
+                        .frame(height: 200)
                     }
                     
                     // Chart Legend

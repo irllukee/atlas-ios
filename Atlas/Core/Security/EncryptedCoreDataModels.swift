@@ -44,9 +44,9 @@ extension Note {
     /// Get decrypted content safely (non-async version for computed properties)
     @MainActor
     var decryptedContent: String {
-        get async {
+        get {
             do {
-                return try await decryptContent()
+                return try decryptContent()
             } catch {
                 print("❌ Failed to decrypt note content: \(error)")
                 return "Unable to decrypt content"
@@ -97,9 +97,9 @@ extension JournalEntry {
     /// Get decrypted content safely (non-async version for computed properties)
     @MainActor
     var decryptedContent: String {
-        get async {
+        get {
             do {
-                return try await decryptContent()
+                return try decryptContent()
             } catch {
                 print("❌ Failed to decrypt journal content: \(error)")
                 return "Unable to decrypt content"

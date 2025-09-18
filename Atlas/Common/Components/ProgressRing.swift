@@ -39,9 +39,9 @@ struct ProgressRing: View {
         .onAppear {
             animatedProgress = progress
         }
-        .onChange(of: progress) { newValue in
+        .onChange(of: progress) {
             withAnimation(.easeInOut(duration: 0.5)) {
-                animatedProgress = newValue
+                animatedProgress = progress
             }
         }
     }

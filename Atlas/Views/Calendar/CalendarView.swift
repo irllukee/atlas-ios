@@ -13,13 +13,19 @@ struct CalendarView: View {
     
     var body: some View {
         NavigationView {
-            VStack {
-                if viewModel.permissionStatus == .notDetermined {
-                    permissionRequestView
-                } else if viewModel.permissionStatus == .denied {
-                    permissionDeniedView
-                } else {
-                    calendarContentView
+            ZStack {
+                // Background
+                AtlasTheme.Colors.background
+                    .ignoresSafeArea()
+                
+                VStack {
+                    if viewModel.permissionStatus == .notDetermined {
+                        permissionRequestView
+                    } else if viewModel.permissionStatus == .denied {
+                        permissionDeniedView
+                    } else {
+                        calendarContentView
+                    }
                 }
             }
             .navigationTitle("Calendar")
@@ -32,10 +38,16 @@ struct CalendarView: View {
                 
                 ToolbarItem(placement: .navigationBarTrailing) {
                     HStack {
-                        Button(action: { viewModel.showingTimeBlocking.toggle() }) {
+                        Button(action: { 
+                            AtlasTheme.Haptics.light()
+                            viewModel.showingTimeBlocking.toggle() 
+                        }) {
                             Label("Time Block", systemImage: "clock")
                         }
-                        Button(action: { viewModel.showingCreateEvent.toggle() }) {
+                        Button(action: { 
+                            AtlasTheme.Haptics.light()
+                            viewModel.showingCreateEvent.toggle() 
+                        }) {
                             Label("Add Event", systemImage: "plus.circle.fill")
                         }
                     }
@@ -46,6 +58,11 @@ struct CalendarView: View {
             }
             .sheet(isPresented: $viewModel.showingTimeBlocking) {
                 TimeBlockingView(viewModel: viewModel)
+            }
+            .onAppear {
+                if viewModel.permissionStatus == .authorized {
+                    viewModel.loadEventsForDate(viewModel.selectedDate)
+                }
             }
         }
     }
@@ -156,7 +173,7 @@ struct DayView: View {
                     ProgressView("Loading events...")
                 } else {
                     List {
-                        ForEach([EKEvent](), id: \.eventIdentifier) { event in
+                        ForEach(viewModel.events, id: \.eventIdentifier) { event in
                             NavigationLink(destination: EventDetailView(event: event, viewModel: viewModel)) {
                                 EventRow(event: event)
                             }

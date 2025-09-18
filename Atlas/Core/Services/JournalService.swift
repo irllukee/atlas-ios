@@ -19,6 +19,15 @@ enum JournalEntryType: String, CaseIterable, Identifiable {
         case .reflection: return "lightbulb.fill"
         }
     }
+    
+    var color: Color {
+        switch self {
+        case .daily: return .blue
+        case .dream: return .purple
+        case .gratitude: return .green
+        case .reflection: return .orange
+        }
+    }
 }
 
 enum MoodLevel: Int16, CaseIterable, Identifiable {
@@ -120,7 +129,7 @@ class JournalService: ObservableObject {
         let context = dataManager.coreDataStack.viewContext
         
         let entry = JournalEntry(context: context)
-        entry.id = UUID()
+        entry.uuid = UUID()
         entry.content = content
         entry.isDream = (type == .dream)
         entry.mood = mood?.rawValue ?? MoodLevel.neutral.rawValue
@@ -230,7 +239,7 @@ class JournalService: ObservableObject {
         let context = dataManager.coreDataStack.viewContext
         
         let moodEntry = MoodEntry(context: context)
-        moodEntry.id = UUID()
+        moodEntry.uuid = UUID()
         moodEntry.rating = rating.rawValue
         moodEntry.emoji = emoji ?? rating.emoji
         moodEntry.notes = notes
@@ -400,6 +409,7 @@ class JournalService: ObservableObject {
     private func loadJournalEntries() {
         let request: NSFetchRequest<JournalEntry> = JournalEntry.fetchRequest()
         request.sortDescriptors = [NSSortDescriptor(keyPath: \JournalEntry.createdAt, ascending: false)]
+        request.fetchBatchSize = 20 // Batch loading for performance
         
         do {
             journalEntries = try dataManager.coreDataStack.viewContext.fetch(request)
@@ -413,6 +423,7 @@ class JournalService: ObservableObject {
     private func loadMoodEntries() {
         let request: NSFetchRequest<MoodEntry> = MoodEntry.fetchRequest()
         request.sortDescriptors = [NSSortDescriptor(keyPath: \MoodEntry.createdAt, ascending: false)]
+        request.fetchBatchSize = 20 // Batch loading for performance
         
         do {
             moodEntries = try dataManager.coreDataStack.viewContext.fetch(request)

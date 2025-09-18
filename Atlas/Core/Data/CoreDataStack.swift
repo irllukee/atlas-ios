@@ -9,12 +9,42 @@ final class CoreDataStack {
     let persistentContainer: NSPersistentContainer
 
     private init() {
+        // Use regular NSPersistentContainer for local storage only
         persistentContainer = NSPersistentContainer(name: "Atlas")
+
+        // Configure store for local storage only
+        guard let description = persistentContainer.persistentStoreDescriptions.first else {
+            fatalError("Failed to retrieve a persistent store description.")
+        }
+
+        // Enable automatic migration
+        description.shouldMigrateStoreAutomatically = true
+        description.shouldInferMappingModelAutomatically = true
+        
+        // Enable history tracking to prevent read-only mode issues
+        description.setOption(true as NSNumber, forKey: NSPersistentHistoryTrackingKey)
+        
         persistentContainer.loadPersistentStores { description, error in
             if let error = error {
+                print("❌ Core Data Error: \(error.localizedDescription)")
+                print("❌ Error details: \(error)")
+                
+                // Try to delete the store and recreate it
+                if let storeURL = description.url {
+                    do {
+                        try FileManager.default.removeItem(at: storeURL)
+                        print("✅ Deleted corrupted store, will recreate on next launch")
+                    } catch {
+                        print("❌ Failed to delete store: \(error)")
+                    }
+                }
+                
                 fatalError("Failed to load Core Data stack: \(error.localizedDescription)")
+            } else {
+                print("✅ Core Data stack loaded successfully")
             }
         }
+        
         // Automatically merge changes from other contexts
         persistentContainer.viewContext.automaticallyMergesChangesFromParent = true
     }

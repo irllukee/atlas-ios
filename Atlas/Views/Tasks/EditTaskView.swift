@@ -19,8 +19,13 @@ struct EditTaskView: View {
     // MARK: - Body
     var body: some View {
         NavigationView {
-            VStack(spacing: 0) {
-                Form {
+            ZStack {
+                // Background
+                AtlasTheme.Colors.background
+                    .ignoresSafeArea()
+                
+                VStack(spacing: 0) {
+                    Form {
                     Section("Task Details") {
                         TextField("Task Title", text: $title)
                             .textFieldStyle(RoundedBorderTextFieldStyle())
@@ -109,8 +114,9 @@ struct EditTaskView: View {
                     }
                 }
                 
-                // Bottom Actions
-                bottomActions
+                    // Bottom Actions
+                    bottomActions
+                }
             }
             .navigationTitle("Edit Task")
             .navigationBarTitleDisplayMode(.inline)

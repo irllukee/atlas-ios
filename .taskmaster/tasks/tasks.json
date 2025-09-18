@@ -22,9 +22,11 @@
           "id": 2,
           "title": "Core Data Model & Persistence",
           "description": "Implement Core Data model with CloudKit integration for persistence.",
-          "status": "pending",
+          "status": "done",
           "priority": "high",
-          "dependencies": [1],
+          "dependencies": [
+            1
+          ],
           "details": "Create Atlas.xcdatamodeld with Note, Task, JournalEntry, and MoodLog entities. Use NSPersistentCloudKitContainer named Atlas. Set remote change notification handling and automatic lightweight migration. Implement PersistenceController.",
           "testStrategy": "Verify Core Data entities are created, data persists, and CloudKit syncs (when online)."
         },
@@ -32,9 +34,11 @@
           "id": 3,
           "title": "Crypto & Keychain Services",
           "description": "Implement secure key management and AES-GCM encryption/decryption.",
-          "status": "pending",
+          "status": "done",
           "priority": "high",
-          "dependencies": [1],
+          "dependencies": [
+            1
+          ],
           "details": "Implement KeychainService to generate and store a symmetric key (com.atlas.notes.symmetrickey) on first launch using CryptoKit. Implement CryptoService using AES.GCM to encrypt/decrypt Data and String, throwing descriptive errors and logging with Logger.",
           "testStrategy": "Test key generation and loading, round-trip encryption/decryption, and error handling."
         },
@@ -42,9 +46,12 @@
           "id": 4,
           "title": "Service Layer Architecture",
           "description": "Define and implement service protocols for core functionalities.",
-          "status": "pending",
+          "status": "done",
           "priority": "medium",
-          "dependencies": [2, 3],
+          "dependencies": [
+            2,
+            3
+          ],
           "details": "Define protocols for NotesService, TasksService, JournalService, MoodService, CalendarService, NotificationService, and SpeechService. Provide concrete implementations using Core Data, EventKit (read-only), UNUserNotificationCenter, and SFSpeechRecognizer.",
           "testStrategy": "Verify service methods can be called and interact with underlying frameworks correctly."
         },
@@ -52,9 +59,11 @@
           "id": 5,
           "title": "Dependency Injection Container",
           "description": "Set up DIContainer for managing service singletons and previews.",
-          "status": "pending",
+          "status": "done",
           "priority": "medium",
-          "dependencies": [4],
+          "dependencies": [
+            4
+          ],
           "details": "Create DIContainer to hold references to service singletons. Pass container into environment using @Environment(\\.di) with a custom EnvironmentKey. Provide PreviewDIContainer with in-memory persistence for SwiftUI previews and tests.",
           "testStrategy": "Verify services can be resolved from DIContainer and previews work with mocked data."
         },
@@ -62,9 +71,11 @@
           "id": 6,
           "title": "Design System & Theme",
           "description": "Establish a consistent design system with colors, typography, and style guide.",
-          "status": "pending",
+          "status": "done",
           "priority": "medium",
-          "dependencies": [1],
+          "dependencies": [
+            1
+          ],
           "details": "Define AtlasTheme with sky blue to indigo gradient background, accent sky blue, secondary lavender colors. Implement SF Pro or Inter typography using Font.system with semibold headers and regular body. Create a StyleGuide.",
           "testStrategy": "Verify colors and fonts are applied consistently across UI components."
         },
@@ -72,9 +83,11 @@
           "id": 7,
           "title": "Core UI Components",
           "description": "Implement reusable UI components like FrostedCard, ProgressRing, buttons, and text fields.",
-          "status": "pending",
+          "status": "done",
           "priority": "medium",
-          "dependencies": [6],
+          "dependencies": [
+            6
+          ],
           "details": "Implement FrostedCard using .ultraThinMaterial, rounded 20, shadow radius 10, inner stroke with gradient overlay. Provide AtlasButton and AtlasTextField with consistent paddings and hit areas. Implement ProgressRing.",
           "testStrategy": "Verify components render correctly and are reusable across the app."
         },
@@ -82,9 +95,12 @@
           "id": 8,
           "title": "Dashboard Implementation",
           "description": "Create a single scrollable dashboard with aggregated data and interactive elements.",
-          "status": "pending",
+          "status": "done",
           "priority": "high",
-          "dependencies": [4, 7],
+          "dependencies": [
+            4,
+            7
+          ],
           "details": "Implement greeting header with date and subtle weather placeholder. Add Top Tasks section (up to 3 items, quick add). Notes recap (3 most recent). Journal prompt card with CTA. Mood quick log slider (1-10, Save). Weekly mood chart line. Use FrostedCard for sections. Implement parallax on scroll and small press scale. DashboardViewModel aggregates data via services and publishes DashboardState.",
           "testStrategy": "Verify dashboard loads, displays data from services, and interactive elements work."
         },
@@ -92,9 +108,13 @@
           "id": 9,
           "title": "Notes Feature",
           "description": "Implement Notes CRUD functionality with encryption and voice capture.",
-          "status": "pending",
+          "status": "done",
           "priority": "high",
-          "dependencies": [3, 4, 7],
+          "dependencies": [
+            3,
+            4,
+            7
+          ],
           "details": "Create NotesListView (pinned/recent notes, search, voice capture button). NoteDetailView (title, encrypted body text editor). Voice to text uses SpeechService and inserts transcript. NotesViewModel handles data flow.",
           "testStrategy": "Verify Notes CRUD, encryption/decryption, and voice capture integration."
         },
@@ -102,9 +122,13 @@
           "id": 10,
           "title": "Tasks Feature",
           "description": "Implement Tasks CRUD functionality with due dates and local notifications.",
-          "status": "pending",
+          "status": "done",
           "priority": "high",
-          "dependencies": [4, 7, 15],
+          "dependencies": [
+            4,
+            7,
+            14
+          ],
           "details": "Create TasksListView (Today/Tomorrow segments, add task field with optional due date). TaskDetailView (title, due date picker, notes, complete toggle). Local notification scheduling on save if dueAt exists. TasksViewModel handles data flow.",
           "testStrategy": "Verify Tasks CRUD, due date handling, and notification scheduling."
         },
@@ -112,9 +136,13 @@
           "id": 11,
           "title": "Journal Feature",
           "description": "Implement encrypted journaling with daily prompts and gratitude tracking.",
-          "status": "pending",
+          "status": "done",
           "priority": "high",
-          "dependencies": [3, 4, 7],
+          "dependencies": [
+            3,
+            4,
+            7
+          ],
           "details": "Create JournalView (daily prompt, prior streak). JournalEntryView (encrypted body text editor, gratitude count stepper). JournalViewModel handles data flow. Implement journal resurfacing (past entry on dashboard if created on this day in a prior year).",
           "testStrategy": "Verify Journal CRUD, encryption/decryption, and prompt/streak display."
         },
@@ -122,9 +150,12 @@
           "id": 12,
           "title": "Mood Tracking",
           "description": "Implement mood logging with a quick log slider and weekly trends chart.",
-          "status": "pending",
+          "status": "done",
           "priority": "medium",
-          "dependencies": [4, 7],
+          "dependencies": [
+            4,
+            7
+          ],
           "details": "Create MoodQuickLogView (slider 1-10, Save). MoodTrendsView (weekly chart, last 7 entries). MoodViewModel handles data flow. Implement Haptics on mood save.",
           "testStrategy": "Verify mood logging, chart display, and haptic feedback."
         },
@@ -132,84 +163,245 @@
           "id": 13,
           "title": "Calendar Integration",
           "description": "Integrate with EventKit to display today and tomorrow's events.",
-          "status": "pending",
+          "status": "done",
           "priority": "medium",
-          "dependencies": [4, 7],
+          "dependencies": [
+            4,
+            7
+          ],
           "details": "Create CalendarPeekView (read-only events for today and tomorrow). CalendarViewModel handles data flow. Request Calendar permission from Calendar card only.",
           "testStrategy": "Verify calendar permission flow and event display."
         },
         {
           "id": 14,
-          "title": "Speech Recognition",
-          "description": "Implement voice-to-text functionality using SFSpeechRecognizer.",
-          "status": "pending",
-          "priority": "medium",
-          "dependencies": [4],
-          "details": "Implement SpeechService to transcribe audio to text. Request speech recognition permission only when the user uses the relevant feature.",
-          "testStrategy": "Verify speech recognition accuracy and permission flow."
-        },
-        {
-          "id": 15,
           "title": "Notification System",
           "description": "Implement local notification scheduling and authorization.",
-          "status": "pending",
+          "status": "done",
           "priority": "medium",
-          "dependencies": [4],
+          "dependencies": [
+            4
+          ],
           "details": "Implement NotificationService to request authorization and schedule local notifications. Request notifications permission only when the user uses the relevant feature.",
           "testStrategy": "Verify notification authorization and scheduling."
         },
         {
-          "id": 16,
+          "id": 15,
           "title": "Unit Testing Suite",
           "description": "Develop comprehensive unit tests for core services and functionalities.",
           "status": "pending",
           "priority": "high",
-          "dependencies": [2, 3, 4],
+          "dependencies": [
+            2,
+            3,
+            4
+          ],
           "details": "Create CryptoServiceTests (round trip encryption/decryption). NotesServiceTests (CRUD, encryption assertion). TasksServiceTests (create with due date, reminder scheduling mock). JournalServiceTests (create entry, gratitude count, fetch recent). Use in-memory Core Data store for tests.",
           "testStrategy": "Ensure all critical service methods are covered and pass tests."
         },
         {
-          "id": 17,
+          "id": 16,
           "title": "Developer Experience",
           "description": "Enhance developer experience with linting, logging, and preview providers.",
-          "status": "pending",
+          "status": "done",
           "priority": "low",
-          "dependencies": [1],
+          "dependencies": [
+            1
+          ],
           "details": "Add SwiftLint with a basic ruleset. Add a simple Logger wrapper using os.Logger. Provide PreviewDIContainer with in-memory persistence for SwiftUI previews and tests. Add a SeedDataCommand for debug builds to populate sample data.",
           "testStrategy": "Verify SwiftLint runs, logs are generated, and previews work correctly."
         },
         {
-          "id": 18,
+          "id": 17,
           "title": "Performance Optimization",
           "description": "Optimize app performance, memory usage, and battery efficiency.",
-          "status": "pending",
+          "status": "done",
           "priority": "medium",
-          "dependencies": [8, 9, 10, 11, 12, 13],
+          "dependencies": [
+            8,
+            9,
+            10,
+            11,
+            12,
+            13
+          ],
           "details": "Profile app performance, optimize CoreData queries and caching, improve memory management, reduce app launch time, and optimize battery usage.",
           "testStrategy": "Measure app launch time, memory footprint, and battery consumption."
         },
         {
-          "id": 19,
+          "id": 18,
           "title": "Accessibility & Localization",
           "description": "Implement accessibility features and prepare for localization.",
-          "status": "pending",
+          "status": "done",
           "priority": "low",
-          "dependencies": [8, 9, 10, 11, 12, 13],
+          "dependencies": [
+            8,
+            9,
+            10,
+            11,
+            12,
+            13
+          ],
           "details": "Add VoiceOver support, Dynamic Type, and other accessibility features. Prepare Localizable.strings for future localization.",
           "testStrategy": "Test with VoiceOver and Dynamic Type enabled."
         },
         {
-          "id": 20,
+          "id": 19,
           "title": "Final Testing & App Store Submission",
           "description": "Conduct comprehensive testing and prepare for App Store submission.",
           "status": "pending",
           "priority": "high",
-          "dependencies": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19],
+          "dependencies": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15,
+            16,
+            17,
+            18
+          ],
           "details": "Conduct comprehensive testing across all features, perform security audit, gather beta user feedback, and prepare App Store metadata (description, screenshots).",
           "testStrategy": "Perform end-to-end testing, security audit, and App Store guideline compliance check."
         }
       ]
     }
   },
-  "currentTag": "master"
+  "currentTag": "master",
+  "brainstorm-galaxy": {
+    "tasks": [
+      {
+        "id": 1,
+        "title": "Core GalaxyView Foundation",
+        "description": "Create the main GalaxyView SwiftUI component with frosted glass aesthetic and cosmic background",
+        "status": "done",
+        "priority": "high",
+        "dependencies": [],
+        "details": "Implement the main GalaxyView with sky-blue gradient background fading to deeper cosmic blue. Create the fundamental view structure that will contain all galaxy nodes. Use frosted glass material effects and establish the visual foundation for the entire feature.",
+        "testStrategy": "Verify the view renders with correct background gradient and frosted glass effects. Test on different device sizes and orientations."
+      },
+      {
+        "id": 2,
+        "title": "Node Rendering System",
+        "description": "Implement the core node rendering with semi-transparent frosted glass circles and soft glow effects",
+        "status": "done",
+        "priority": "high",
+        "dependencies": [
+          1
+        ],
+        "details": "Create GalaxyNode component with semi-transparent frosted glass circles, soft glow effects, and center pulse animation. Implement different node sizes based on content importance and color coding for different content types (dreams: purple/indigo, notes: yellow/amber, tasks: blue/cyan, journal: white).",
+        "testStrategy": "Test node rendering with different sizes, colors, and glow effects. Verify performance with multiple nodes on screen."
+      },
+      {
+        "id": 3,
+        "title": "Tap to Expand Animation",
+        "description": "Implement radial expansion animation when nodes are tapped, like fireworks opening in slow motion",
+        "status": "done",
+        "priority": "high",
+        "dependencies": [
+          2
+        ],
+        "details": "Create smooth radial expansion animation when a node is tapped. Sub-nodes should blossom outward from the parent node in a radial pattern. Animation should feel organic and natural, like fireworks opening in slow motion. Implement one layer deep expansion for MVP.",
+        "testStrategy": "Test expansion animation smoothness and timing. Verify sub-nodes appear in correct radial positions."
+      },
+      {
+        "id": 4,
+        "title": "Tap to Collapse Animation",
+        "description": "Implement collapse animation that folds sub-nodes back into the parent node",
+        "status": "done",
+        "priority": "high",
+        "dependencies": [
+          3
+        ],
+        "details": "Create reverse animation for collapsing expanded nodes. When the central node is tapped again, sub-nodes should fold back into the parent node smoothly. Animation should be the reverse of the expansion animation.",
+        "testStrategy": "Test collapse animation and verify it's the smooth reverse of expansion. Ensure no visual artifacts during collapse."
+      },
+      {
+        "id": 5,
+        "title": "Zoom and Pan Navigation",
+        "description": "Implement pinch-to-zoom and drag-to-pan navigation with smooth glide motion",
+        "status": "done",
+        "priority": "high",
+        "dependencies": [
+          1
+        ],
+        "details": "Add pinch gesture recognition for zooming in/out of galaxy clusters. Implement drag gesture for panning across the galaxy with smooth glide motion. Ensure 60fps performance during navigation. Add constraints to maintain visual hierarchy at all zoom levels.",
+        "testStrategy": "Test zoom and pan gestures for smoothness and responsiveness. Verify performance at different zoom levels."
+      },
+      {
+        "id": 6,
+        "title": "Manual Link Creation System",
+        "description": "Implement long-press to activate link mode and drag-to-connect nodes",
+        "status": "done",
+        "priority": "medium",
+        "dependencies": [
+          2
+        ],
+        "details": "Create long-press gesture recognition to activate 'link' mode with visual feedback. Implement drag gesture to create connection threads between nodes. Add visual confirmation when links are established. Links should become permanent part of the constellation with thin, glowing lines.",
+        "testStrategy": "Test long-press activation, drag-to-connect functionality, and visual feedback. Verify links persist correctly."
+      },
+      {
+        "id": 7,
+        "title": "Connection Visualization",
+        "description": "Create thin, glowing lines between connected nodes with ripple animations",
+        "status": "done",
+        "priority": "medium",
+        "dependencies": [
+          6
+        ],
+        "details": "Implement connection lines between linked nodes using thin, glowing lines. Add subtle ripple animation when clusters expand to make connections feel alive. Ensure connections are visually appealing and don't clutter the galaxy view.",
+        "testStrategy": "Test connection line rendering and ripple animations. Verify visual clarity with multiple connections."
+      },
+      {
+        "id": 8,
+        "title": "Dreams Integration",
+        "description": "Integrate existing dreams data as purple/indigo glowing stars in the galaxy",
+        "status": "done",
+        "priority": "medium",
+        "dependencies": [
+          2
+        ],
+        "details": "Connect to existing dreams data and display as stars named after recurring symbols. Dreams should have soft purple/indigo glow to distinguish from other content. Related dreams should automatically cluster together. Implement tap to expand and view dream details.",
+        "testStrategy": "Test dreams display in galaxy, clustering behavior, and integration with existing dreams data."
+      },
+      {
+        "id": 9,
+        "title": "Notes Integration",
+        "description": "Integrate existing notes as idea clusters with warm yellow/amber glow",
+        "status": "done",
+        "priority": "medium",
+        "dependencies": [
+          2
+        ],
+        "details": "Connect to existing notes data and display as idea clusters with warm yellow/amber glow. Notes with similar tags or themes should cluster together. Implement tap to expand and view note content. Allow creation of new notes directly from galaxy view.",
+        "testStrategy": "Test notes display, clustering by tags/themes, and note creation from galaxy view."
+      },
+      {
+        "id": 10,
+        "title": "Tasks Integration",
+        "description": "Integrate existing tasks as smaller stars orbiting around larger goal nodes",
+        "status": "done",
+        "priority": "medium",
+        "dependencies": [
+          2
+        ],
+        "details": "Connect to existing tasks data and display as smaller stars that orbit around larger 'goal' nodes. Show task dependencies through orbital patterns. Add visual indicators for task completion status. Allow task management directly from galaxy view.",
+        "testStrategy": "Test task display, orbital patterns, dependency visualization, and task management from galaxy."
+      }
+    ],
+    "metadata": {
+      "created": "2025-09-16T19:28:29.294Z",
+      "updated": "2025-09-16T21:09:58.795Z",
+      "description": "Brainstorm Galaxy feature - visual thinking tool with frosted glass nodes and cosmic navigation"
+    }
+  }
 }

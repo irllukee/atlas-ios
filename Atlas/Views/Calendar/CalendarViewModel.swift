@@ -6,6 +6,7 @@ import Combine
 class CalendarViewModel: ObservableObject {
     // MARK: - Properties
     private let calendarService: CalendarService
+    private let notificationService = NotificationService.shared
     private var cancellables = Set<AnyCancellable>()
     
     @Published var events: [EKEvent] = []
@@ -69,29 +70,23 @@ class CalendarViewModel: ObservableObject {
     func requestCalendarAccess() async {
         let granted = await calendarService.requestCalendarAccess()
         if granted {
-            selectedCalendar = await calendarService.getDefaultCalendar()
+            selectedCalendar = calendarService.getDefaultCalendar()
         }
     }
     
     /// Load events for the selected date
     func loadEventsForDate(_ date: Date) {
-        _Concurrency.Task { @MainActor in
-            await calendarService.loadEventsForDate(date)
-        }
+        calendarService.loadEventsForDate(date)
     }
     
     /// Load events for the current week
     func loadEventsForWeek() {
-        _Concurrency.Task { @MainActor in
-            await calendarService.loadEventsForWeek(containing: selectedDate)
-        }
+        calendarService.loadEventsForWeek(containing: selectedDate)
     }
     
     /// Load events for the current month
     func loadEventsForMonth() {
-        _Concurrency.Task { @MainActor in
-            await calendarService.loadEventsForMonth(containing: selectedDate)
-        }
+        calendarService.loadEventsForMonth(containing: selectedDate)
     }
     
     /// Create a new event
@@ -108,26 +103,30 @@ class CalendarViewModel: ObservableObject {
         isLoading = true
         errorMessage = nil
         
-        _Concurrency.Task { @MainActor in
-            let event = await calendarService.createEvent(
-                title: title,
-                startDate: startDate,
-                endDate: endDate,
-                notes: notes,
-                location: location,
-                eventType: eventType,
-                calendar: selectedCalendar,
-                isAllDay: isAllDay,
-                reminderMinutes: reminderMinutes
+        let event = calendarService.createEvent(
+            title: title,
+            startDate: startDate,
+            endDate: endDate,
+            notes: notes,
+            location: location,
+            eventType: eventType,
+            calendar: selectedCalendar,
+            isAllDay: isAllDay,
+            reminderMinutes: reminderMinutes
+        )
+        
+        if let event = event {
+            // Schedule notification for the event
+            notificationService.scheduleEventReminder(
+                eventId: event.eventIdentifier,
+                title: event.title ?? "Event",
+                startDate: event.startDate
             )
-            
-            if event != nil {
-                showingCreateEvent = false
-                loadEventsForDate(selectedDate)
-            }
-            
-            isLoading = false
+            showingCreateEvent = false
+            loadEventsForDate(selectedDate)
         }
+        
+        isLoading = false
     }
     
     /// Update an existing event
@@ -143,23 +142,28 @@ class CalendarViewModel: ObservableObject {
         isLoading = true
         errorMessage = nil
         
-        _Concurrency.Task { @MainActor in
-            let success = await calendarService.updateEvent(
-                event,
-                title: title,
-                startDate: startDate,
-                endDate: endDate,
-                notes: notes,
-                location: location,
-                isAllDay: isAllDay
+        let success = calendarService.updateEvent(
+            event,
+            title: title,
+            startDate: startDate,
+            endDate: endDate,
+            notes: notes,
+            location: location,
+            isAllDay: isAllDay
+        )
+        
+        if success {
+            // Update notifications for the event
+            notificationService.removeEventReminders(eventId: event.eventIdentifier)
+            notificationService.scheduleEventReminder(
+                eventId: event.eventIdentifier,
+                title: title ?? event.title ?? "Event",
+                startDate: startDate ?? event.startDate
             )
-            
-            if success {
-                loadEventsForDate(selectedDate)
-            }
-            
-            isLoading = false
+            loadEventsForDate(selectedDate)
         }
+        
+        isLoading = false
     }
     
     /// Delete an event
@@ -167,15 +171,16 @@ class CalendarViewModel: ObservableObject {
         isLoading = true
         errorMessage = nil
         
-        _Concurrency.Task { @MainActor in
-            let success = await calendarService.deleteEvent(event)
-            
-            if success {
-                loadEventsForDate(selectedDate)
-            }
-            
-            isLoading = false
+        // Remove notifications before deleting event
+        notificationService.removeEventReminders(eventId: event.eventIdentifier)
+        
+        let success = calendarService.deleteEvent(event)
+        
+        if success {
+            loadEventsForDate(selectedDate)
         }
+        
+        isLoading = false
     }
     
     /// Create a time block
@@ -188,29 +193,27 @@ class CalendarViewModel: ObservableObject {
         isLoading = true
         errorMessage = nil
         
-        _Concurrency.Task { @MainActor in
-            let event = await calendarService.createTimeBlock(
-                title: title,
-                startDate: startDate,
-                duration: duration,
-                notes: notes
-            )
-            
-            if event != nil {
-                showingTimeBlocking = false
-                loadEventsForDate(selectedDate)
-            }
-            
-            isLoading = false
+        let event = calendarService.createTimeBlock(
+            title: title,
+            startDate: startDate,
+            duration: duration,
+            notes: notes
+        )
+        
+        if event != nil {
+            showingTimeBlocking = false
+            loadEventsForDate(selectedDate)
         }
+        
+        isLoading = false
     }
     
     /// Find available time slots for a given duration
     func findAvailableTimeSlots(
         duration: TimeInterval,
         workingHours: (start: Int, end: Int) = (9, 17)
-    ) async -> [DateInterval] {
-        return await calendarService.findAvailableTimeSlots(
+    ) -> [DateInterval] {
+        return calendarService.findAvailableTimeSlots(
             for: selectedDate,
             duration: duration,
             workingHours: workingHours
@@ -222,30 +225,28 @@ class CalendarViewModel: ObservableObject {
         isLoading = true
         errorMessage = nil
         
-        _Concurrency.Task { @MainActor in
-            let event = await calendarService.syncTaskWithCalendar(task)
-            
-            if event != nil {
-                loadEventsForDate(selectedDate)
-            }
-            
-            isLoading = false
+        let event = calendarService.syncTaskWithCalendar(task)
+        
+        if event != nil {
+            loadEventsForDate(selectedDate)
         }
+        
+        isLoading = false
     }
     
     /// Get events for a specific date
-    func getEventsForDate(_ date: Date) async -> [EKEvent] {
-        return await calendarService.getEventsForDate(date)
+    func getEventsForDate(_ date: Date) -> [EKEvent] {
+        return calendarService.getEventsForDate(date)
     }
     
     /// Get upcoming events
-    func getUpcomingEvents(limit: Int = 10) async -> [EKEvent] {
-        return await calendarService.getUpcomingEvents(limit: limit)
+    func getUpcomingEvents(limit: Int = 10) -> [EKEvent] {
+        return calendarService.getUpcomingEvents(limit: limit)
     }
     
     /// Get events by type
-    func getEventsByType(_ type: EventType) async -> [EKEvent] {
-        return await calendarService.getEventsByType(type)
+    func getEventsByType(_ type: EventType) -> [EKEvent] {
+        return calendarService.getEventsByType(type)
     }
     
     /// Navigate to previous day
@@ -284,13 +285,13 @@ class CalendarViewModel: ObservableObject {
     }
     
     /// Check if a date has events
-    func hasEventsOnDate(_ date: Date) async -> Bool {
-        return !(await getEventsForDate(date)).isEmpty
+    func hasEventsOnDate(_ date: Date) -> Bool {
+        return !getEventsForDate(date).isEmpty
     }
     
     /// Get the number of events on a specific date
-    func getEventCountForDate(_ date: Date) async -> Int {
-        return (await getEventsForDate(date)).count
+    func getEventCountForDate(_ date: Date) -> Int {
+        return getEventsForDate(date).count
     }
     
     // MARK: - Private Methods
@@ -301,8 +302,6 @@ class CalendarViewModel: ObservableObject {
         let endOfMonth = calendar.dateInterval(of: .month, for: selectedDate)?.end ?? selectedDate
         let monthInterval = DateInterval(start: startOfMonth, end: endOfMonth)
         
-        _Concurrency.Task { @MainActor in
-            calendarStatistics = await calendarService.getEventStatistics(for: monthInterval)
-        }
+        calendarStatistics = calendarService.getEventStatistics(for: monthInterval)
     }
 }

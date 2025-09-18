@@ -29,9 +29,22 @@
 		2FD0CC1B2E77D6700060D427 /* AtlasUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = AtlasUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		2F5C50462E7A1E92007017EE /* Exceptions for "Atlas" folder in "Atlas" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 2FD0CC012E77D66E0060D427 /* Atlas */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		2FD0CC042E77D66E0060D427 /* Atlas */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				2F5C50462E7A1E92007017EE /* Exceptions for "Atlas" folder in "Atlas" target */,
+			);
 			path = Atlas;
 			sourceTree = "<group>";
 		};
@@ -400,6 +413,7 @@
 				DEVELOPMENT_TEAM = QD6PAWS488;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = Atlas/Info.plist;
 				INFOPLIST_KEY_NSCalendarsUsageDescription = "Atlas integrates with your calendar to display today's events and help you plan your day.";
 				INFOPLIST_KEY_NSRemindersUsageDescription = "Atlas can create reminders for your tasks and important events to help you stay organized.";
 				INFOPLIST_KEY_NSUserNotificationsUsageDescription = "Atlas sends notifications for task reminders and important updates to help you stay on track.";
@@ -432,6 +446,7 @@
 				DEVELOPMENT_TEAM = QD6PAWS488;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = Atlas/Info.plist;
 				INFOPLIST_KEY_NSCalendarsUsageDescription = "Atlas integrates with your calendar to display today's events and help you plan your day.";
 				INFOPLIST_KEY_NSRemindersUsageDescription = "Atlas can create reminders for your tasks and important events to help you stay organized.";
 				INFOPLIST_KEY_NSUserNotificationsUsageDescription = "Atlas sends notifications for task reminders and important updates to help you stay on track.";

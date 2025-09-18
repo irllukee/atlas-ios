@@ -238,8 +238,16 @@ class TasksService: ObservableObject {
     // MARK: - Private Helpers
     
     private func loadTasks() {
-        tasks = taskRepository.fetchAll()
-        filterTasks()
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            guard let self = self else { return }
+            
+            let fetchedTasks = self.taskRepository.fetchAll()
+            
+            DispatchQueue.main.async {
+                self.tasks = fetchedTasks
+                self.filterTasks()
+            }
+        }
     }
 }
 

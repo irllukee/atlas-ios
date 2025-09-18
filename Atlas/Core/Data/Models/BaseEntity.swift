@@ -3,7 +3,7 @@ import CoreData
 
 /// Base protocol for all CoreData entities
 protocol BaseEntity {
-    var id: UUID? { get set }
+    var uuid: UUID? { get set }
     var createdAt: Date? { get set }
     var updatedAt: Date? { get set }
 }
@@ -12,8 +12,8 @@ protocol BaseEntity {
 extension BaseEntity {
     /// Generate a new UUID if none exists
     mutating func ensureID() {
-        if id == nil {
-            id = UUID()
+        if uuid == nil {
+            uuid = UUID()
         }
     }
     
@@ -35,7 +35,7 @@ extension JournalEntry: BaseEntity {}
 extension BaseEntity {
     /// Validate that required fields are present
     func isValid() -> Bool {
-        return id != nil
+        return uuid != nil
     }
 }
 
@@ -44,7 +44,7 @@ extension Note {
     /// Create a new note with default values
     static func create(context: NSManagedObjectContext, title: String, content: String = "") -> Note {
         let note = Note(context: context)
-        note.id = UUID()
+        note.uuid = UUID()
         note.title = title
         note.content = content
         note.createdAt = Date()
@@ -69,7 +69,7 @@ extension Task {
     /// Create a new task with default values
     static func create(context: NSManagedObjectContext, title: String, notes: String = "") -> Task {
         let task = Task(context: context)
-        task.id = UUID()
+        task.uuid = UUID()
         task.title = title
         task.notes = notes
         task.createdAt = Date()
@@ -116,7 +116,7 @@ extension JournalEntry {
     /// Create a new journal entry with default values
     static func create(context: NSManagedObjectContext, content: String, prompt: String? = nil) -> JournalEntry {
         let entry = JournalEntry(context: context)
-        entry.id = UUID()
+        entry.uuid = UUID()
         entry.content = content
         entry.prompt = prompt
         entry.createdAt = Date()
@@ -142,7 +142,7 @@ extension MoodEntry {
     /// Create a new mood entry with default values
     static func create(context: NSManagedObjectContext, rating: Int16, emoji: String? = nil, notes: String? = nil) -> MoodEntry {
         let entry = MoodEntry(context: context)
-        entry.id = UUID()
+        entry.uuid = UUID()
         entry.rating = rating
         entry.emoji = emoji
         entry.notes = notes

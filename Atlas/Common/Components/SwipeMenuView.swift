@@ -17,14 +17,16 @@ struct SwipeMenuView: View {
         (.tasks, "checkmark.circle", "Tasks"),
         (.journal, "book.fill", "Journal"),
         (.calendar, "calendar", "Calendar"),
+        (.analytics, "chart.bar.fill", "Analytics"),
+        (.brainstormGalaxy, "sparkles", "Brainstorm Galaxy"),
         (.profile, "person.circle", "Profile")
     ]
     
     var body: some View {
         ZStack {
-            // Full-width background that extends to the left edge
+            // Full-screen background that covers the entire screen
             AtlasTheme.Colors.background
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .frame(width: UIScreen.main.bounds.width, height: UIScreen.main.bounds.height)
                 .ignoresSafeArea(.all)
             
             // Menu content (60% width, aligned to the left)
@@ -44,6 +46,7 @@ struct SwipeMenuView: View {
             .frame(maxHeight: .infinity)
             .frame(maxWidth: .infinity, alignment: .leading)
         }
+        .frame(width: UIScreen.main.bounds.width, height: UIScreen.main.bounds.height)
         .offset(x: isOpen ? 0 : -UIScreen.main.bounds.width)
         .animation(.spring(response: 0.5, dampingFraction: 0.8, blendDuration: 0.1), value: isOpen)
     }

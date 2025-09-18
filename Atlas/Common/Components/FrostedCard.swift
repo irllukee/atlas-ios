@@ -20,16 +20,9 @@ struct FrostedCard<Content: View>: View {
     var body: some View {
         content
             .padding(padding)
-            .background(
-                RoundedRectangle(cornerRadius: cornerRadius)
-                    .fill(backgroundFill)
-                    .background(
-                        RoundedRectangle(cornerRadius: cornerRadius)
-                            .stroke(borderColor, lineWidth: borderWidth)
-                    )
-                    .shadow(color: shadowColor, radius: shadowRadius, x: 0, y: shadowOffset)
-            )
+            .glassmorphism(style: glassmorphismStyle, cornerRadius: cornerRadius)
             .scaleEffect(scaleEffect)
+            .animation(AtlasTheme.Animations.smooth, value: scaleEffect)
     }
     
     // MARK: - Style Properties
@@ -55,57 +48,12 @@ struct FrostedCard<Content: View>: View {
         }
     }
     
-    private var backgroundFill: some ShapeStyle {
+    private var glassmorphismStyle: GlassmorphismModifier.GlassStyle {
         switch style {
         case .standard, .compact, .metric:
-            return AtlasTheme.Colors.glassBackground
+            return .card
         case .floating:
-            return AtlasTheme.Colors.glassBackground.opacity(0.8)
-        }
-    }
-    
-    private var borderColor: Color {
-        switch style {
-        case .standard, .compact, .metric:
-            return AtlasTheme.Colors.glassBorder
-        case .floating:
-            return AtlasTheme.Colors.glassBorder.opacity(0.6)
-        }
-    }
-    
-    private var borderWidth: CGFloat {
-        switch style {
-        case .standard, .compact, .metric:
-            return 1.0
-        case .floating:
-            return 0.5
-        }
-    }
-    
-    private var shadowColor: Color {
-        switch style {
-        case .standard, .compact, .metric:
-            return AtlasTheme.Colors.glassShadow
-        case .floating:
-            return AtlasTheme.Colors.glassShadow.opacity(0.3)
-        }
-    }
-    
-    private var shadowRadius: CGFloat {
-        switch style {
-        case .standard, .compact, .metric:
-            return 8
-        case .floating:
-            return 16
-        }
-    }
-    
-    private var shadowOffset: CGFloat {
-        switch style {
-        case .standard, .compact, .metric:
-            return 4
-        case .floating:
-            return 8
+            return .floating
         }
     }
     

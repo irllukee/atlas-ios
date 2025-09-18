@@ -1,5 +1,6 @@
 import SwiftUI
 import CoreData
+import UIKit
 
 @main
 struct AtlasApp: App {
@@ -11,10 +12,44 @@ struct AtlasApp: App {
     // MARK: - App State
     @State private var isAppReady = false
     
+    init() {
+        // Configure UIKit to prevent white backgrounds
+        configureUIKitAppearance()
+    }
+    
+    private func configureUIKitAppearance() {
+        // Set window background to clear to prevent white flash
+        if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene {
+            windowScene.windows.forEach { window in
+                window.backgroundColor = UIColor.clear
+            }
+        }
+        
+        // Configure navigation bar appearance
+        let appearance = UINavigationBarAppearance()
+        appearance.configureWithTransparentBackground()
+        appearance.backgroundColor = UIColor.clear
+        UINavigationBar.appearance().standardAppearance = appearance
+        UINavigationBar.appearance().scrollEdgeAppearance = appearance
+        UINavigationBar.appearance().compactAppearance = appearance
+        
+        // Configure tab bar appearance
+        let tabBarAppearance = UITabBarAppearance()
+        tabBarAppearance.configureWithTransparentBackground()
+        tabBarAppearance.backgroundColor = UIColor.clear
+        UITabBar.appearance().standardAppearance = tabBarAppearance
+        UITabBar.appearance().scrollEdgeAppearance = tabBarAppearance
+    }
+    
     var body: some Scene {
         WindowGroup {
             ZStack {
+                // Solid base layer that fills the entire screen
+                AtlasTheme.Colors.background
+                    .ignoresSafeArea(.all)
+                
                 if isAppReady {
+                    // Show main app directly - no authentication required
                     ContentView()
                         .environmentObject(dataManager)
                         .environmentObject(securityManager)
@@ -39,6 +74,7 @@ struct AtlasApp: App {
             }
         }
     }
+    
 }
 
 // MARK: - Splash View

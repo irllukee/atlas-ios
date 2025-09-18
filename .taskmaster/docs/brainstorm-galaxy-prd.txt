@@ -1,0 +1,223 @@
+# Brainstorm Galaxy Feature - Product Requirements Document
+
+## Overview
+The Brainstorm Galaxy is a visual thinking tool that transforms Atlas into a cosmic mind-mapping experience. Users can explore their thoughts, ideas, and connections through an interactive galaxy of frosted glass nodes that expand, connect, and drift like a living constellation.
+
+## Visual Identity & Design System
+
+### Core Aesthetic
+- **Background**: Frosted sky-blue gradient fading into deeper cosmic blue
+- **Atmosphere**: Airy but cosmic, maintaining Atlas's signature frosted glass aesthetic
+- **Motion**: Slow, screensaver-like drift that feels alive and organic
+- **Glow Effects**: Soft, pulsing glows that create depth and warmth
+
+### Node Design
+- **Primary Nodes**: Semi-transparent frosted-glass circles with soft glow
+- **Center Pulse**: Faint, rhythmic pulsing like a heartbeat
+- **Size Variation**: Different node sizes based on content importance
+- **Color Coding**: Subtle hue variations for different content types
+  - Dreams: Soft purple/indigo glow
+  - Notes: Warm yellow/amber glow  
+  - Tasks: Cool blue/cyan glow
+  - Journal Entries: Larger orbs with gentle white glow
+
+### Connection System
+- **Visual Links**: Thin, glowing lines between connected nodes
+- **Animation**: Lines ripple slightly when clusters expand
+- **Organic Feel**: Connections feel alive, not mechanical
+- **Clustering**: Related nodes naturally group together
+
+## Core Interactions (MVP)
+
+### 1. Tap to Expand
+- **Action**: Single tap on any node
+- **Animation**: Radial expansion like fireworks in slow motion
+- **Behavior**: Node blossoms into related sub-nodes
+- **Depth**: One layer deep for MVP (can expand further in future)
+- **Visual**: Smooth, organic growth animation
+
+### 2. Tap to Collapse
+- **Action**: Tap central node again
+- **Animation**: Sub-nodes fold back into parent node
+- **Behavior**: Returns to single star state
+- **Visual**: Reverse of expansion animation
+
+### 3. Zoom & Pan Navigation
+- **Pinch Out**: Zoom into specific cluster for detailed view
+- **Pinch In**: Zoom back out to galaxy overview
+- **Drag**: Pan across galaxy with smooth glide motion
+- **Constraints**: Maintain visual hierarchy at all zoom levels
+- **Performance**: Smooth 60fps navigation
+
+### 4. Manual Link Creation
+- **Activation**: Long-press on any node
+- **Mode**: "Link" mode activates with visual feedback
+- **Connection**: Drag thread to another node to create link
+- **Confirmation**: Visual confirmation when link is established
+- **Persistence**: Links become permanent part of constellation
+
+## Integration with Existing Atlas Features
+
+### Dreams Integration
+- **Display**: Dreams appear as stars named after recurring symbols
+- **Clustering**: Related dreams automatically group together
+- **Visual**: Soft purple/indigo glow to distinguish from other content
+- **Interaction**: Tap to expand and see dream details
+
+### Notes Integration
+- **Display**: Idea clusters with warm yellow/amber glow
+- **Organization**: Notes with similar tags or themes cluster together
+- **Access**: Tap to expand and view note content
+- **Creation**: New notes can be created directly from galaxy view
+
+### Tasks Integration
+- **Display**: Smaller stars that orbit around larger "goal" nodes
+- **Hierarchy**: Task dependencies shown through orbital patterns
+- **Status**: Visual indicators for task completion status
+- **Management**: Create, edit, and complete tasks from galaxy view
+
+### Journal Entries Integration
+- **Display**: Larger frosted orbs that pulse like anchors
+- **Prominence**: Journal entries serve as major constellation anchors
+- **Timeline**: Recent entries glow brighter than older ones
+- **Access**: Tap to expand and read full journal entry
+
+## Technical Requirements
+
+### Performance
+- **Frame Rate**: Maintain 60fps during all animations
+- **Memory**: Efficient node rendering for large constellations
+- **Battery**: Optimized animations to minimize battery drain
+- **Responsiveness**: All interactions must feel immediate
+
+### Data Management
+- **Persistence**: Save galaxy state and connections
+- **Sync**: Integrate with existing Core Data models
+- **Backup**: Include galaxy data in app backups
+- **Migration**: Handle data migration for future updates
+
+### Accessibility
+- **VoiceOver**: Full VoiceOver support for navigation
+- **Dynamic Type**: Respect user's text size preferences
+- **Color Contrast**: Ensure sufficient contrast for all users
+- **Motor Accessibility**: Alternative interaction methods
+
+## User Experience Flow
+
+### First Launch
+1. **Welcome**: Brief introduction to galaxy concept
+2. **Tutorial**: Interactive tutorial showing basic gestures
+3. **Sample Data**: Pre-populate with sample nodes from existing content
+4. **Discovery**: Guide user through first expansion and connection
+
+### Daily Usage
+1. **Open Galaxy**: Access from main navigation menu
+2. **Explore**: Navigate existing constellation
+3. **Expand**: Tap nodes to explore connections
+4. **Create**: Add new nodes and connections
+5. **Navigate**: Use zoom and pan to move around galaxy
+
+### Content Creation
+1. **New Node**: Long-press in empty space to create node
+2. **Content Type**: Choose from Dreams, Notes, Tasks, or Journal
+3. **Connection**: Link to existing nodes if desired
+4. **Customization**: Set visual properties and importance
+
+## Success Metrics
+
+### Engagement
+- **Session Duration**: Average time spent in galaxy view
+- **Node Interactions**: Number of expansions per session
+- **Link Creation**: Frequency of manual link creation
+- **Return Usage**: Daily/weekly active users of galaxy feature
+
+### Content Integration
+- **Cross-Feature Usage**: How often users access other features from galaxy
+- **Data Utilization**: Percentage of existing content represented in galaxy
+- **New Content**: Creation of new content through galaxy interface
+
+### User Satisfaction
+- **Feature Rating**: User ratings specifically for galaxy feature
+- **Feedback**: Qualitative feedback on visual design and interactions
+- **Retention**: User retention after galaxy feature introduction
+
+## Future Enhancements (Post-MVP)
+
+### Advanced Interactions
+- **Multi-Layer Expansion**: Expand nodes multiple levels deep
+- **Gesture Shortcuts**: Custom gesture combinations for power users
+- **Voice Commands**: Voice-activated navigation and creation
+- **Haptic Feedback**: Enhanced tactile feedback for interactions
+
+### AI Integration
+- **Smart Suggestions**: AI-powered connection recommendations
+- **Auto-Clustering**: Automatic grouping of related content
+- **Pattern Recognition**: Identify recurring themes and patterns
+- **Predictive Expansion**: Suggest likely expansion paths
+
+### Collaboration
+- **Shared Galaxies**: Collaborate on galaxy constellations
+- **Export/Import**: Share galaxy configurations
+- **Real-time Sync**: Live collaboration on galaxy editing
+- **Version History**: Track changes and revert if needed
+
+### Advanced Visualization
+- **3D Galaxy**: Optional 3D navigation mode
+- **Time-based Views**: Show galaxy evolution over time
+- **Filter Modes**: Filter by content type, date, or importance
+- **Custom Themes**: User-customizable visual themes
+
+## Implementation Phases
+
+### Phase 1: Core Foundation (MVP)
+- Basic node rendering and display
+- Tap to expand/collapse functionality
+- Zoom and pan navigation
+- Manual link creation
+- Integration with existing Atlas content
+
+### Phase 2: Enhanced Interactions
+- Improved animations and transitions
+- Advanced gesture recognition
+- Better visual feedback
+- Performance optimizations
+
+### Phase 3: Advanced Features
+- Multi-layer expansion
+- Smart clustering algorithms
+- Enhanced data integration
+- Advanced customization options
+
+### Phase 4: AI and Collaboration
+- AI-powered suggestions
+- Collaborative features
+- Advanced analytics
+- Export/import capabilities
+
+## Technical Architecture
+
+### Core Components
+- **GalaxyView**: Main SwiftUI view for galaxy display
+- **NodeRenderer**: Handles individual node rendering and animations
+- **ConnectionManager**: Manages node connections and link creation
+- **NavigationController**: Handles zoom, pan, and gesture recognition
+- **DataIntegrator**: Integrates with existing Atlas data models
+
+### Data Models
+- **GalaxyNode**: Represents individual nodes in the galaxy
+- **NodeConnection**: Represents links between nodes
+- **GalaxyState**: Manages overall galaxy configuration and state
+- **ContentReference**: Links galaxy nodes to Atlas content (notes, tasks, etc.)
+
+### Animation System
+- **SpringAnimations**: Natural, organic movement animations
+- **ParticleSystem**: Subtle particle effects for enhanced atmosphere
+- **TransitionManager**: Smooth transitions between galaxy states
+- **PerformanceOptimizer**: Ensures smooth performance at all times
+
+This Brainstorm Galaxy feature will transform Atlas into a unique visual thinking tool that maintains the app's signature aesthetic while providing powerful new ways to explore and connect ideas.
+
+
+
+
+

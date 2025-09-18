@@ -6,6 +6,7 @@ import CoreData
 class TasksViewModel: ObservableObject {
     // MARK: - Properties
     private let tasksService: TasksService
+    private let notificationService = NotificationService.shared
     private var cancellables = Set<AnyCancellable>()
     
     @Published var tasks: [Task] = []
@@ -90,7 +91,15 @@ class TasksViewModel: ObservableObject {
             recurrencePattern: recurrencePattern
         )
         
-        if task != nil {
+        if let task = task {
+            // Schedule notification if task has a due date
+            if let dueDate = task.dueDate {
+                notificationService.scheduleTaskReminder(
+                    taskId: task.uuid?.uuidString ?? "",
+                    title: task.title ?? "Task",
+                    dueDate: dueDate
+                )
+            }
             showingCreateTask = false
         } else {
             errorMessage = "Failed to create task"
@@ -105,7 +114,15 @@ class TasksViewModel: ObservableObject {
         
         let task = tasksService.createTaskFromTemplate(template)
         
-        if task != nil {
+        if let task = task {
+            // Schedule notification if task has a due date
+            if let dueDate = task.dueDate {
+                notificationService.scheduleTaskReminder(
+                    taskId: task.uuid?.uuidString ?? "",
+                    title: task.title ?? "Task",
+                    dueDate: dueDate
+                )
+            }
             showingTemplates = false
             showingCreateTask = false
         } else {
@@ -121,7 +138,22 @@ class TasksViewModel: ObservableObject {
         
         let success = tasksService.updateTask(task, title: title, notes: notes, priority: priority, dueDate: dueDate)
         
-        if !success {
+        if success {
+            // Update notifications if due date changed
+            if let taskId = task.uuid?.uuidString {
+                // Remove old notifications
+                notificationService.removeTaskReminders(taskId: taskId)
+                
+                // Schedule new notifications if there's a due date
+                if let dueDate = dueDate ?? task.dueDate {
+                    notificationService.scheduleTaskReminder(
+                        taskId: taskId,
+                        title: title ?? task.title ?? "Task",
+                        dueDate: dueDate
+                    )
+                }
+            }
+        } else {
             errorMessage = "Failed to update task"
         }
         isLoading = false
@@ -131,6 +163,11 @@ class TasksViewModel: ObservableObject {
     func deleteTask(_ task: Task) {
         isLoading = true
         errorMessage = nil
+        
+        // Remove notifications before deleting task
+        if let taskId = task.uuid?.uuidString {
+            notificationService.removeTaskReminders(taskId: taskId)
+        }
         
         let success = tasksService.deleteTask(task)
         

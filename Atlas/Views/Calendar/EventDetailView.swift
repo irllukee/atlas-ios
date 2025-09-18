@@ -23,7 +23,7 @@ struct EventDetailView: View {
                     Section("Event Details") {
                         TextField("Event Title", text: $title)
                             .textFieldStyle(RoundedBorderTextFieldStyle())
-                            .onChange(of: title) { _ in checkForChanges() }
+                            .onChange(of: title) { checkForChanges() }
                         
                         VStack(alignment: .leading, spacing: 8) {
                             Text("Notes")
@@ -35,30 +35,30 @@ struct EventDetailView: View {
                                     RoundedRectangle(cornerRadius: 8)
                                         .stroke(Color(.systemGray4), lineWidth: 1)
                                 )
-                                .onChange(of: notes) { _ in checkForChanges() }
+                                .onChange(of: notes) { checkForChanges() }
                         }
                         
                         TextField("Location", text: $location)
                             .textFieldStyle(RoundedBorderTextFieldStyle())
-                            .onChange(of: location) { _ in checkForChanges() }
+                            .onChange(of: location) { checkForChanges() }
                     }
                     
                     Section("Date & Time") {
                         Toggle("All Day", isOn: $isAllDay)
-                            .onChange(of: isAllDay) { _ in checkForChanges() }
+                            .onChange(of: isAllDay) { checkForChanges() }
                         
                         if !isAllDay {
                             DatePicker("Start Date", selection: $startDate, displayedComponents: [.date, .hourAndMinute])
                                 .datePickerStyle(CompactDatePickerStyle())
-                                .onChange(of: startDate) { _ in checkForChanges() }
+                                .onChange(of: startDate) { checkForChanges() }
                             
                             DatePicker("End Date", selection: $endDate, displayedComponents: [.date, .hourAndMinute])
                                 .datePickerStyle(CompactDatePickerStyle())
-                                .onChange(of: endDate) { _ in checkForChanges() }
+                                .onChange(of: endDate) { checkForChanges() }
                         } else {
                             DatePicker("Date", selection: $startDate, displayedComponents: [.date])
                                 .datePickerStyle(CompactDatePickerStyle())
-                                .onChange(of: startDate) { _ in checkForChanges() }
+                                .onChange(of: startDate) { checkForChanges() }
                         }
                     }
                     
@@ -212,14 +212,12 @@ struct EventDetailView: View {
                 return "\(hours) hour\(hours > 1 ? "s" : "") before"
             }
         }
-        return "Reminder"
     }
 }
 
 // MARK: - Preview
 struct EventDetailView_Previews: PreviewProvider {
     static var previews: some View {
-        let viewModel = CalendarViewModel()
         // Note: In a real preview, you'd need to create a mock EKEvent
         // For now, this will show the structure
         Text("Event Detail View")

@@ -25,7 +25,7 @@ struct EditJournalEntryView: View {
                                 RoundedRectangle(cornerRadius: 8)
                                     .stroke(Color(.systemGray4), lineWidth: 1)
                             )
-                            .onChange(of: content) { _ in checkForChanges() }
+                            .onChange(of: content) { checkForChanges() }
                     }
                     
                     // Gratitude entries (if any)
@@ -34,7 +34,7 @@ struct EditJournalEntryView: View {
                             ForEach(gratitudeEntries.indices, id: \.self) { index in
                                 HStack {
                                     TextField("Gratitude \(index + 1)", text: $gratitudeEntries[index])
-                                        .onChange(of: gratitudeEntries[index]) { _ in checkForChanges() }
+                                        .onChange(of: gratitudeEntries[index]) { checkForChanges() }
                                     Button(action: {
                                         gratitudeEntries.remove(at: index)
                                         checkForChanges()
@@ -72,7 +72,7 @@ struct EditJournalEntryView: View {
                                 }
                             }
                             .pickerStyle(MenuPickerStyle())
-                            .onChange(of: selectedMood) { _ in checkForChanges() }
+                            .onChange(of: selectedMood) { checkForChanges() }
                         }
                     }
                     
@@ -206,7 +206,7 @@ struct EditJournalEntryView_Previews: PreviewProvider {
         // Create a sample journal entry for preview
         let context = PersistenceController.preview.container.viewContext
         let entry = JournalEntry(context: context)
-        entry.id = UUID()
+        entry.uuid = UUID()
         entry.content = "This is a sample journal entry for preview purposes."
         entry.createdAt = Date()
         entry.updatedAt = Date()

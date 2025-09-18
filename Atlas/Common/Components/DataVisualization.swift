@@ -96,7 +96,8 @@ struct DataVisualization: View {
     private func animateData() {
         animatedData = Array(repeating: 0, count: data.count)
         
-        withAnimation(.easeInOut(duration: 1.5)) {
+        // Reduced animation duration for better performance
+        withAnimation(.easeInOut(duration: 0.8)) {
             animatedData = data
         }
     }

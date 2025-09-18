@@ -13,41 +13,73 @@ struct TasksView: View {
     
     var body: some View {
         NavigationView {
-            VStack {
-                if viewModel.isLoading {
-                    ProgressView("Loading Tasks...")
-                } else if let errorMessage = viewModel.errorMessage {
-                    Text("Error: \(errorMessage)")
-                        .foregroundColor(.red)
-                } else if viewModel.filteredTasks.isEmpty {
-                    ContentUnavailableView("No Tasks", systemImage: "checklist")
-                } else {
-                    List {
-                        ForEach(viewModel.filteredTasks) { task in
-                            NavigationLink(destination: EditTaskView(task: task, viewModel: viewModel)) {
-                                TaskRow(task: task, viewModel: viewModel)
-                            }
+            ZStack {
+                // Background
+                AtlasTheme.Colors.background
+                    .ignoresSafeArea()
+                
+                VStack(spacing: 0) {
+                    // Modern Search Bar
+                    ModernSearchBar(
+                        searchText: $viewModel.searchText,
+                        placeholder: "Search tasks...",
+                        onSearch: { query in
+                            viewModel.searchTasks(query: query)
+                        },
+                        onClear: {
+                            viewModel.searchTasks(query: "")
                         }
-                        .onDelete(perform: deleteTasks)
+                    )
+                    .padding(.horizontal, 16)
+                    .padding(.top, 8)
+                    
+                    // Tasks List
+                    if viewModel.isLoading {
+                        ProgressView("Loading Tasks...")
+                            .foregroundColor(.white)
+                    } else if let errorMessage = viewModel.errorMessage {
+                        Text("Error: \(errorMessage)")
+                            .foregroundColor(.red)
+                    } else if viewModel.filteredTasks.isEmpty {
+                        ContentUnavailableView("No Tasks", systemImage: "checklist")
+                            .foregroundColor(.white)
+                    } else {
+                        List {
+                            ForEach(viewModel.filteredTasks) { task in
+                                NavigationLink(destination: EditTaskView(task: task, viewModel: viewModel)) {
+                                    TaskRow(task: task, viewModel: viewModel)
+                                }
+                            }
+                            .onDelete(perform: deleteTasks)
+                        }
+                        .listStyle(PlainListStyle())
+                        .scrollContentBackground(.hidden)
                     }
-                    .listStyle(PlainListStyle())
                 }
             }
             .navigationTitle("Tasks")
-            .searchable(text: $viewModel.searchText, prompt: "Search tasks...")
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
                     EditButton()
                 }
                 ToolbarItem(placement: .navigationBarTrailing) {
                     HStack {
-                        Button(action: { viewModel.showingFilters.toggle() }) {
+                        Button(action: { 
+                            AtlasTheme.Haptics.light()
+                            viewModel.showingFilters.toggle() 
+                        }) {
                             Label("Filter", systemImage: "line.3.horizontal.decrease.circle")
                         }
-                        Button(action: { viewModel.showingTemplates.toggle() }) {
+                        Button(action: { 
+                            AtlasTheme.Haptics.light()
+                            viewModel.showingTemplates.toggle() 
+                        }) {
                             Label("Templates", systemImage: "doc.on.doc")
                         }
-                        Button(action: { viewModel.showingCreateTask.toggle() }) {
+                        Button(action: { 
+                            AtlasTheme.Haptics.light()
+                            viewModel.showingCreateTask.toggle() 
+                        }) {
                             Label("Add Task", systemImage: "plus.circle.fill")
                         }
                     }

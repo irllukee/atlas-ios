@@ -7,8 +7,13 @@ final class SecurityManager: ObservableObject {
     static let shared = SecurityManager()
     
     // MARK: - Services
-    private let encryptionService = EncryptionService.shared
+    private let _encryptionService = EncryptionService.shared
     private let biometricService = BiometricService.shared
+    
+    // MARK: - Public Accessors
+    var encryptionService: EncryptionService {
+        return _encryptionService
+    }
     
     // MARK: - Published Properties
     @Published var isSecurityEnabled = false
@@ -24,7 +29,7 @@ final class SecurityManager: ObservableObject {
     
     // MARK: - Private Properties
     private var lastAuthenticationTime: Date?
-    private var authenticationTimer: Timer?
+    private var authenticationTimer: Foundation.Timer?
     
     // MARK: - Initialization
     private init() {
@@ -108,7 +113,7 @@ final class SecurityManager: ObservableObject {
             throw SecurityError.encryptionNotAvailable
         }
         
-        return try encryptionService.encrypt(data)
+        return try _encryptionService.encrypt(data)
     }
     
     func encrypt(_ string: String) throws -> EncryptedData {
@@ -116,7 +121,7 @@ final class SecurityManager: ObservableObject {
             throw SecurityError.encryptionNotAvailable
         }
         
-        return try encryptionService.encrypt(string)
+        return try _encryptionService.encrypt(string)
     }
     
     func decrypt(_ encryptedData: EncryptedData) throws -> Data {
@@ -124,7 +129,7 @@ final class SecurityManager: ObservableObject {
             throw SecurityError.encryptionNotAvailable
         }
         
-        return try encryptionService.decrypt(encryptedData)
+        return try _encryptionService.decrypt(encryptedData)
     }
     
     func decryptToString(_ encryptedData: EncryptedData) throws -> String {
@@ -132,7 +137,7 @@ final class SecurityManager: ObservableObject {
             throw SecurityError.encryptionNotAvailable
         }
         
-        return try encryptionService.decryptToString(encryptedData)
+        return try _encryptionService.decryptToString(encryptedData)
     }
     
     // MARK: - Security Settings Management
@@ -170,7 +175,14 @@ final class SecurityManager: ObservableObject {
     // MARK: - Auto-Lock Timer
     private func startAuthenticationTimer() {
         stopAuthenticationTimer()
-        authenticationTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
+        authenticationTimer = Foundation.Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
+            DispatchQueue.main.async {
+                guard let self = self else { return }
+                if let lastAuth = self.lastAuthenticationTime,
+                   Date().timeIntervalSince(lastAuth) > self.autoLockTimeout {
+                    self.logout()
+                }
+            }
         }
     }
     

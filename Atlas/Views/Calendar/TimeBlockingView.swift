@@ -41,7 +41,7 @@ struct TimeBlockingView: View {
                                 .font(.headline)
                             
                             Slider(value: $duration, in: 900...14400, step: 900) // 15 minutes to 4 hours
-                                .onChange(of: duration) { _ in
+                                .onChange(of: duration) {
                                     findAvailableSlots()
                                 }
                         }
@@ -68,7 +68,7 @@ struct TimeBlockingView: View {
                                 }
                             }
                             .pickerStyle(MenuPickerStyle())
-                            .onChange(of: workingHours.start) { _ in
+                            .onChange(of: workingHours.start) {
                                 findAvailableSlots()
                             }
                         }
@@ -82,7 +82,7 @@ struct TimeBlockingView: View {
                                 }
                             }
                             .pickerStyle(MenuPickerStyle())
-                            .onChange(of: workingHours.end) { _ in
+                            .onChange(of: workingHours.end) {
                                 findAvailableSlots()
                             }
                         }
@@ -162,12 +162,10 @@ struct TimeBlockingView: View {
     
     // MARK: - Actions
     private func findAvailableSlots() {
-        _Concurrency.Task {
-            availableSlots = await viewModel.findAvailableTimeSlots(
-                duration: duration,
-                workingHours: workingHours
-            )
-        }
+        availableSlots = viewModel.findAvailableTimeSlots(
+            duration: duration,
+            workingHours: workingHours
+        )
     }
     
     private func createTimeBlock() {

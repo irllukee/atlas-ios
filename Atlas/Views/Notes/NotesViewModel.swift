@@ -16,10 +16,14 @@ class NotesViewModel: ObservableObject {
     @Published var showingCreateNote: Bool = false
     @Published var showingTemplates: Bool = false
     @Published var selectedNote: Note? = nil
+    @Published var folders: [NoteFolder] = []
+    @Published var favoriteNotes: [Note] = []
+    @Published var recentNotes: [Note] = []
     
     // MARK: - Services
     private let notesService: NotesService
     private let dataManager: DataManager
+    private let errorHandler = ErrorHandler.shared
     
     // MARK: - Initialization
     init(dataManager: DataManager, encryptionService: EncryptionService) {
@@ -53,8 +57,13 @@ class NotesViewModel: ObservableObject {
         isLoading = true
         errorMessage = nil
         
-        // Notes are loaded automatically through the service
-        isLoading = false
+        // Load notes from the service
+        notesService.loadNotes()
+        
+        // Set loading to false after notes are loaded
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+            self.isLoading = false
+        }
     }
     
     /// Create a new note
@@ -72,8 +81,14 @@ class NotesViewModel: ObservableObject {
         if note != nil {
             showingCreateNote = false
         } else {
-            errorMessage = "Failed to create note"
+            errorHandler.handleAppError(AppError(
+                title: "Note Creation Failed",
+                message: "Unable to create the note. Please try again.",
+                category: .data,
+                context: .noteCreation
+            ))
         }
+        
         isLoading = false
     }
     
@@ -159,6 +174,80 @@ class NotesViewModel: ObservableObject {
     /// Clear selected note
     func clearSelectedNote() {
         selectedNote = nil
+    }
+    
+    /// Get all notes (for folder count)
+    var allNotes: [Note] {
+        return notes
+    }
+    
+    /// Get notes in a specific folder
+    func notesInFolder(_ folder: NoteFolder) -> [Note] {
+        return notes.filter { $0.folder == folder }
+    }
+    
+    /// Toggle favorite status for a note
+    func toggleFavorite(_ note: Note) {
+        note.isFavorite.toggle()
+        saveContext()
+        loadNotes()
+    }
+    
+    /// Create a new folder
+    func createFolder(name: String, color: String = "blue") {
+        let context = dataManager.coreDataStack.viewContext
+        let folder = NoteFolder(context: context)
+        folder.uuid = UUID()
+        folder.name = name
+        folder.color = color
+        folder.createdAt = Date()
+        folder.updatedAt = Date()
+        
+        saveContext()
+        loadFolders()
+    }
+    
+    /// Load folders from Core Data
+    func loadFolders() {
+        let request: NSFetchRequest<NoteFolder> = NoteFolder.fetchRequest()
+        request.sortDescriptors = [NSSortDescriptor(keyPath: \NoteFolder.name, ascending: true)]
+        
+        do {
+            folders = try dataManager.coreDataStack.viewContext.fetch(request)
+        } catch {
+            errorMessage = "Failed to load folders: \(error.localizedDescription)"
+        }
+    }
+    
+    /// Update favorite notes list
+    func updateFavoriteNotes() {
+        favoriteNotes = notes.filter { $0.isFavorite }
+    }
+    
+    /// Update recent notes list (last 10 accessed notes)
+    func updateRecentNotes() {
+        let request: NSFetchRequest<Note> = Note.fetchRequest()
+        request.sortDescriptors = [NSSortDescriptor(keyPath: \Note.lastAccessedAt, ascending: false)]
+        request.fetchLimit = 10
+        request.predicate = NSPredicate(format: "lastAccessedAt != nil")
+        
+        do {
+            recentNotes = try dataManager.coreDataStack.viewContext.fetch(request)
+        } catch {
+            errorMessage = "Failed to load recent notes: \(error.localizedDescription)"
+        }
+    }
+    
+    /// Mark a note as accessed (update lastAccessedAt)
+    func markNoteAsAccessed(_ note: Note) {
+        note.lastAccessedAt = Date()
+        saveContext()
+        updateRecentNotes()
+    }
+    
+    /// Save Core Data context
+    private func saveContext() {
+        dataManager.save()
     }
     
     /// Clear error message

@@ -21,8 +21,6 @@ class NotesService: ObservableObject {
         self.dataManager = dataManager
         self.encryptionService = encryptionService
         self.noteRepository = NoteRepository(context: dataManager.coreDataStack.viewContext)
-        
-        loadNotes()
     }
     
     // MARK: - CRUD Operations
@@ -253,10 +251,12 @@ class NotesService: ObservableObject {
         }
     }
     
-    // MARK: - Private Helpers
+    // MARK: - Public Methods
     
-    private func loadNotes() {
-        notes = noteRepository.fetchAll()
+    /// Load all notes from Core Data
+    func loadNotes() {
+        let fetchedNotes = noteRepository.fetchAll()
+        notes = fetchedNotes
         filterNotes()
     }
 }

@@ -8,9 +8,20 @@ struct QuickStatCard: View {
     let icon: String
     let color: Color
     let progress: Double
+    let action: (() -> Void)?
     
     @State private var isPressed = false
     @State private var animationOffset: CGFloat = 0
+    
+    init(title: String, value: String, subtitle: String, icon: String, color: Color, progress: Double, action: (() -> Void)? = nil) {
+        self.title = title
+        self.value = value
+        self.subtitle = subtitle
+        self.icon = icon
+        self.color = color
+        self.progress = progress
+        self.action = action
+    }
     
     var body: some View {
         FrostedCard(style: .compact) {
@@ -55,24 +66,30 @@ struct QuickStatCard: View {
         }
         .scaleEffect(isPressed ? 0.95 : 1.0)
         .offset(y: animationOffset)
-        .animation(.spring(response: 0.3, dampingFraction: 0.7), value: isPressed)
-        .animation(.spring(response: 0.4, dampingFraction: 0.8), value: animationOffset)
+        .animation(AtlasTheme.Animations.spring, value: isPressed)
+        .animation(AtlasTheme.Animations.gentle, value: animationOffset)
         .onTapGesture {
-            withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+            AtlasTheme.Haptics.light()
+            withAnimation(AtlasTheme.Animations.snappy) {
                 isPressed = true
             }
             
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                withAnimation(AtlasTheme.Animations.snappy) {
                     isPressed = false
                 }
+                // Execute the action if provided
+                action?()
             }
         }
         .onAppear {
-            withAnimation(.spring(response: 0.6, dampingFraction: 0.8).delay(0.1)) {
+            withAnimation(AtlasTheme.Animations.gentle.delay(0.1)) {
                 animationOffset = 0
             }
         }
+        .accessibilityLabel("\(title): \(value)")
+        .accessibilityHint(subtitle)
+        .accessibilityAddTraits(.isButton)
     }
 }
 

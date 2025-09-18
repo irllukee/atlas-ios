@@ -2,37 +2,64 @@ import SwiftUI
 
 struct ContentView: View {
     @EnvironmentObject private var dataManager: DataManager
-    @EnvironmentObject private var encryptionService: EncryptionService
+    @EnvironmentObject private var securityManager: SecurityManager
+    @EnvironmentObject private var biometricService: BiometricService
     @State private var selectedView: AppView = .dashboard
     @State private var isMenuOpen = false
     @State private var dragOffset: CGFloat = 0
     @State private var isDragging: Bool = false
+    @State private var showingProfilePictureEditor = false
+    
+    // Dashboard data service
+    @StateObject private var dashboardDataService: DashboardDataService
+    @StateObject private var profilePictureService = ProfilePictureService.shared
+    
+    // Animation states for dashboard
+    @State private var headerOpacity: Double = 0
+    @State private var headerOffset: CGFloat = 30
+    @State private var statsOpacity: Double = 0
+    @State private var statsOffset: CGFloat = 30
     
     // Menu configuration
     private let menuWidth: CGFloat = UIScreen.main.bounds.width * 0.6
     private let maxDragDistance: CGFloat = 50
     
+    // MARK: - Initialization
+    init() {
+        // Initialize dashboard data service lazily to avoid blocking app startup
+        self._dashboardDataService = StateObject(wrappedValue: DashboardDataService(
+            dataManager: DataManager.shared,
+            calendarService: CalendarService(),
+            notesService: NotesService(dataManager: DataManager.shared, encryptionService: EncryptionService.shared),
+            tasksService: TasksService(dataManager: DataManager.shared),
+            journalService: JournalService(dataManager: DataManager.shared, encryptionService: EncryptionService.shared)
+        ))
+    }
+    
     var body: some View {
         GeometryReader { geometry in
-            ZStack {
+        ZStack {
                 // Swipe Menu (background layer)
                 SwipeMenuView(
                     isOpen: $isMenuOpen,
                     selectedView: $selectedView
                 )
+                .environmentObject(dataManager)
+                .environmentObject(securityManager)
                 .zIndex(0)
                 
                 // Main Content (slides over when menu opens)
-                currentView
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            currentView
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .offset(x: isMenuOpen ? menuWidth + dragOffset : dragOffset)
                     .animation(.spring(response: 0.5, dampingFraction: 0.8, blendDuration: 0.1), value: isMenuOpen)
-                    .animation(.spring(response: 0.3, dampingFraction: 0.7, blendDuration: 0.1), value: dragOffset)
+                    .animation(.spring(response: 0.3, dampingFraction: 0.9, blendDuration: 0.1), value: dragOffset)
                     .zIndex(1)
                     .onTapGesture {
                         if isMenuOpen {
                             withAnimation(.spring(response: 0.5, dampingFraction: 0.8, blendDuration: 0.1)) {
                                 isMenuOpen = false
+                                dragOffset = 0
                             }
                         }
                     }
@@ -47,6 +74,17 @@ struct ContentView: View {
                     )
             }
         }
+        .onAppear {
+            // Ensure dragOffset is reset when view appears
+            dragOffset = 0
+            
+            // Configure navigation bar to prevent white backgrounds during transitions
+            configureNavigationBar()
+        }
+        .sheet(isPresented: $showingProfilePictureEditor) {
+            ProfilePictureEditorView()
+        }
+        .withErrorHandling()
     }
     
     // MARK: - Current View
@@ -56,49 +94,66 @@ struct ContentView: View {
         case .dashboard:
             dashboardView
         case .notes:
-            NotesView(dataManager: dataManager, encryptionService: encryptionService)
+            NotesView(dataManager: dataManager, encryptionService: securityManager.encryptionService)
         case .tasks:
             TasksView(dataManager: dataManager)
         case .journal:
-            JournalView(dataManager: dataManager, encryptionService: encryptionService)
+            JournalView(dataManager: dataManager, encryptionService: securityManager.encryptionService)
         case .calendar:
             CalendarView()
+        case .analytics:
+            AnalyticsNavigationView()
+        case .brainstormGalaxy:
+            GalaxyView()
         case .profile:
             ProfileView()
-        }
     }
-    
-    // MARK: - Dashboard View
+}
+
+// MARK: - Dashboard View
     private var dashboardView: some View {
         ZStack {
             // Background gradient
             AtlasTheme.Colors.background
                 .ignoresSafeArea()
             
-            ScrollView {
+        ScrollView {
                 LazyVStack(spacing: 0) {
                     // Modern Header Section
                     modernHeaderSection
+                        .opacity(headerOpacity)
+                        .offset(y: headerOffset)
+                        .animation(AtlasTheme.Animations.gentle.delay(0.1), value: headerOpacity)
+                        .animation(AtlasTheme.Animations.gentle.delay(0.1), value: headerOffset)
                     
                     // Quick Stats Grid
                     quickStatsGrid
+                        .opacity(statsOpacity)
+                        .offset(y: statsOffset)
+                        .animation(AtlasTheme.Animations.gentle.delay(0.2), value: statsOpacity)
+                        .animation(AtlasTheme.Animations.gentle.delay(0.2), value: statsOffset)
                     
-                    // Today's Focus Section
-                    todaysFocusSection
-                    
-                    // Life Modules Grid
-                    lifeModulesGrid
-                    
-                    // Recent Activity Section
-                    recentActivitySection
-                    
-                    // Weather & Context Section
-                    weatherContextSection
                     
                     // Bottom Spacing
                     Spacer(minLength: 100)
                 }
             }
+                   .onAppear {
+                       // Refresh dashboard data
+                       dashboardDataService.loadDashboardData()
+                       
+                       // Animate dashboard sections
+                       withAnimation(AtlasTheme.Animations.gentle.delay(0.1)) {
+                           headerOpacity = 1
+                           headerOffset = 0
+                       }
+                       
+                       withAnimation(AtlasTheme.Animations.gentle.delay(0.2)) {
+                           statsOpacity = 1
+                           statsOffset = 0
+                       }
+                       
+                   }
         }
     }
     
@@ -110,44 +165,58 @@ struct ContentView: View {
                     // Dynamic Greeting
                     Text(dynamicGreeting)
                         .font(.system(size: 28, weight: .bold, design: .rounded))
-                        .foregroundColor(.white)
-                    
+                                .foregroundColor(.white)
+                            
                     // Current Date & Time
                     Text(currentDateTime)
                         .font(.system(size: 16, weight: .medium, design: .rounded))
-                        .foregroundColor(.white.opacity(0.8))
-                    
+                                .foregroundColor(.white.opacity(0.8))
+                            
                     // Motivational Quote
                     Text(dailyQuote)
-                        .font(.system(size: 14, weight: .regular, design: .rounded))
-                        .foregroundColor(.white.opacity(0.6))
+                                .font(.system(size: 14, weight: .regular, design: .rounded))
+                                .foregroundColor(.white.opacity(0.6))
                         .italic()
-                }
-                
-                Spacer()
-                
+                        }
+                        
+                        Spacer()
+                        
                 // Profile Avatar with Status
                 VStack(spacing: 8) {
-                    Circle()
-                        .fill(
-                            LinearGradient(
-                                gradient: Gradient(colors: [.blue, .purple]),
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            )
-                        )
-                        .frame(width: 60, height: 60)
-                        .overlay(
-                            Text("A")
-                                .font(.title)
-                                .fontWeight(.bold)
-                                .foregroundColor(.white)
-                        )
-                        .overlay(
+                    Button(action: {
+                        showingProfilePictureEditor = true
+                    }) {
+                        ZStack {
+                            if let profileImage = profilePictureService.profileImage {
+                                Image(uiImage: profileImage)
+                                    .resizable()
+                                    .aspectRatio(contentMode: .fill)
+                                    .frame(width: 60, height: 60)
+                                    .clipShape(Circle())
+                            } else {
+                                Circle()
+                                    .fill(
+                                        LinearGradient(
+                                            gradient: Gradient(colors: [.blue, .purple]),
+                                            startPoint: .topLeading,
+                                            endPoint: .bottomTrailing
+                                        )
+                                    )
+                                    .frame(width: 60, height: 60)
+                                    .overlay(
+                                        Text("A")
+                                            .font(.title)
+                                            .fontWeight(.bold)
+                                            .foregroundColor(.white)
+                                    )
+                            }
+                            
                             Circle()
                                 .stroke(.white, lineWidth: 3)
                                 .frame(width: 66, height: 66)
-                        )
+                        }
+                    }
+                    .buttonStyle(PlainButtonStyle())
                     
                     // Status Indicator
                     HStack(spacing: 4) {
@@ -167,285 +236,72 @@ struct ContentView: View {
     
     // MARK: - Quick Stats Grid
     private var quickStatsGrid: some View {
-        LazyVGrid(columns: [
-            GridItem(.flexible()),
-            GridItem(.flexible())
-        ], spacing: 16) {
-            // Tasks Completed Today
-            QuickStatCard(
-                title: "Tasks Done",
-                value: "12",
-                subtitle: "of 15 today",
-                icon: "checkmark.circle.fill",
-                color: .green,
-                progress: 0.8
-            )
+        HStack(alignment: .top, spacing: 0) {
+            // Left side - empty space for future content
+            Spacer()
             
-            // Notes Created
-            QuickStatCard(
-                title: "Notes",
-                value: "8",
-                subtitle: "this week",
-                icon: "note.text",
-                color: .blue,
-                progress: 0.6
-            )
-            
-            // Journal Entries
-            QuickStatCard(
-                title: "Journal",
-                value: "3",
-                subtitle: "entries today",
-                icon: "book.fill",
-                color: .purple,
-                progress: 0.4
-            )
-            
-            // Calendar Events
-            QuickStatCard(
-                title: "Events",
-                value: "5",
-                subtitle: "remaining today",
-                icon: "calendar",
-                color: .orange,
-                progress: 0.7
-            )
+            // Right side - vertically stacked stats cards (bigger and closer to edge)
+            VStack(spacing: 15) {
+                // Tasks Completed Today
+                QuickStatCard(
+                    title: "Tasks Done",
+                    value: "\(dashboardDataService.dashboardStats.tasksCompletedToday)",
+                    subtitle: "of \(dashboardDataService.dashboardStats.tasksTotalToday) today",
+                    icon: "checkmark.circle.fill",
+                    color: .green,
+                    progress: dashboardDataService.dashboardStats.tasksProgress,
+                    action: {
+                        selectedView = .tasks
+                        withAnimation(.spring(response: 0.5, dampingFraction: 0.8, blendDuration: 0.1)) {
+                            isMenuOpen = false
+                        }
+                    }
+                )
+                .scaleEffect(0.7)
+                .frame(width: 180, height: 90)
+                
+                // Notes Created
+                QuickStatCard(
+                    title: "Notes",
+                    value: "\(dashboardDataService.dashboardStats.notesThisWeek)",
+                    subtitle: "this week",
+                    icon: "note.text",
+                    color: .blue,
+                    progress: dashboardDataService.dashboardStats.notesProgress,
+                    action: {
+                        selectedView = .notes
+                        withAnimation(.spring(response: 0.5, dampingFraction: 0.8, blendDuration: 0.1)) {
+                            isMenuOpen = false
+                        }
+                    }
+                )
+                .scaleEffect(0.7)
+                .frame(width: 180, height: 90)
+                
+                // Journal Entries
+                QuickStatCard(
+                    title: "Journal",
+                    value: "\(dashboardDataService.dashboardStats.journalEntriesToday)",
+                    subtitle: "entries today",
+                    icon: "book.fill",
+                    color: .purple,
+                    progress: dashboardDataService.dashboardStats.journalProgress,
+                    action: {
+                        selectedView = .journal
+                        withAnimation(.spring(response: 0.5, dampingFraction: 0.8, blendDuration: 0.1)) {
+                            isMenuOpen = false
+                        }
+                    }
+                )
+                .scaleEffect(0.7)
+                .frame(width: 180, height: 90)
+            }
+            .padding(.trailing, 0)
         }
-        .padding(.horizontal, 20)
         .padding(.top, 24)
     }
     
-    // MARK: - Today's Focus Section
-    private var todaysFocusSection: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            HStack {
-                Text("Today's Focus")
-                    .font(.system(size: 22, weight: .bold, design: .rounded))
-                    .foregroundColor(.white)
                 
-                Spacer()
-                
-                Button("Customize") {
-                    // Action for customization
-                }
-                .font(.system(size: 14, weight: .medium, design: .rounded))
-                .foregroundColor(.white.opacity(0.7))
-            }
-            .padding(.horizontal, 20)
-            
-            // Focus Cards
-            VStack(spacing: 12) {
-                FocusCard(
-                    title: "Morning Routine",
-                    description: "Complete your daily morning routine",
-                    progress: 0.75,
-                    color: .blue,
-                    icon: "sunrise.fill"
-                )
-                
-                FocusCard(
-                    title: "Work Project",
-                    description: "Finish the quarterly report",
-                    progress: 0.4,
-                    color: .green,
-                    icon: "briefcase.fill"
-                )
-                
-                FocusCard(
-                    title: "Evening Reflection",
-                    description: "Journal about today's experiences",
-                    progress: 0.0,
-                    color: .purple,
-                    icon: "moon.stars.fill"
-                )
-            }
-            .padding(.horizontal, 20)
-        }
-        .padding(.top, 32)
-    }
-    
-    // MARK: - Life Modules Grid
-    private var lifeModulesGrid: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            HStack {
-                Text("Life Modules")
-                    .font(.system(size: 22, weight: .bold, design: .rounded))
-                    .foregroundColor(.white)
-                
-                Spacer()
-                
-                Button("View All") {
-                    // Action to view all modules
-                }
-                .font(.system(size: 14, weight: .medium, design: .rounded))
-                .foregroundColor(.white.opacity(0.7))
-            }
-            .padding(.horizontal, 20)
-            
-            LazyVGrid(columns: [
-                GridItem(.flexible()),
-                GridItem(.flexible())
-            ], spacing: 16) {
-                LifeModuleCard(
-                    title: "Dream Journal",
-                    icon: "moon.stars.fill",
-                    value: "2 entries",
-                    color: .purple,
-                    progress: 0.6
-                )
-                
-                LifeModuleCard(
-                    title: "Notes & Ideas",
-                    icon: "note.text",
-                    value: "5 notes",
-                    color: .blue,
-                    progress: 0.8
-                )
-                
-                LifeModuleCard(
-                    title: "Tasks & Goals",
-                    icon: "checkmark.circle.fill",
-                    value: "73% done",
-                    color: .green,
-                    progress: 0.73
-                )
-                
-                LifeModuleCard(
-                    title: "Calendar",
-                    icon: "calendar",
-                    value: "3 PM meeting",
-                    color: .orange,
-                    progress: 0.4
-                )
-            }
-            .padding(.horizontal, 20)
-        }
-        .padding(.top, 32)
-    }
-    
-    // MARK: - Recent Activity Section
-    private var recentActivitySection: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            HStack {
-                Text("Recent Activity")
-                    .font(.system(size: 22, weight: .bold, design: .rounded))
-                    .foregroundColor(.white)
-                
-                Spacer()
-                
-                Button("See All") {
-                    // Action to see all activity
-                }
-                .font(.system(size: 14, weight: .medium, design: .rounded))
-                .foregroundColor(.white.opacity(0.7))
-            }
-            .padding(.horizontal, 20)
-            
-            FrostedCard(style: .standard) {
-                VStack(spacing: 16) {
-                    ActivityItem(
-                        icon: "checkmark.circle.fill",
-                        title: "Completed task: Review quarterly report",
-                        time: "2 hours ago",
-                        color: .green
-                    )
-                    
-                    ActivityItem(
-                        icon: "note.text",
-                        title: "Created note: Meeting ideas",
-                        time: "4 hours ago",
-                        color: .blue
-                    )
-                    
-                    ActivityItem(
-                        icon: "book.fill",
-                        title: "Journal entry: Morning reflection",
-                        time: "6 hours ago",
-                        color: .purple
-                    )
-                    
-                    ActivityItem(
-                        icon: "calendar",
-                        title: "Added event: Team meeting",
-                        time: "Yesterday",
-                        color: .orange
-                    )
-                }
-            }
-            .padding(.horizontal, 20)
-        }
-        .padding(.top, 32)
-    }
-    
-    // MARK: - Weather & Context Section
-    private var weatherContextSection: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            HStack {
-                Text("Today's Context")
-                    .font(.system(size: 22, weight: .bold, design: .rounded))
-                    .foregroundColor(.white)
-                
-                Spacer()
-            }
-            .padding(.horizontal, 20)
-            
-            HStack(spacing: 16) {
-                // Weather Card
-                FrostedCard(style: .compact) {
-                    VStack(spacing: 8) {
-                        Image(systemName: "sun.max.fill")
-                            .font(.title2)
-                            .foregroundColor(.yellow)
-                        
-                        Text("72°F")
-                            .font(.system(size: 18, weight: .bold, design: .rounded))
-                            .foregroundColor(.white)
-                        
-                        Text("Sunny")
-                            .font(.caption)
-                            .foregroundColor(.white.opacity(0.7))
-                    }
-                }
-                
-                // Productivity Score
-                FrostedCard(style: .compact) {
-                    VStack(spacing: 8) {
-                        Image(systemName: "chart.line.uptrend.xyaxis")
-                            .font(.title2)
-                            .foregroundColor(.green)
-                        
-                        Text("85%")
-                            .font(.system(size: 18, weight: .bold, design: .rounded))
-                            .foregroundColor(.white)
-                        
-                        Text("Productivity")
-                            .font(.caption)
-                            .foregroundColor(.white.opacity(0.7))
-                    }
-                }
-                
-                // Mood Tracker
-                FrostedCard(style: .compact) {
-                    VStack(spacing: 8) {
-                        Image(systemName: "face.smiling.fill")
-                            .font(.title2)
-                            .foregroundColor(.yellow)
-                        
-                        Text("Great")
-                            .font(.system(size: 18, weight: .bold, design: .rounded))
-                            .foregroundColor(.white)
-                        
-                        Text("Mood")
-                            .font(.caption)
-                            .foregroundColor(.white.opacity(0.7))
-                    }
-                }
-            }
-            .padding(.horizontal, 20)
-        }
-        .padding(.top, 32)
-    }
-    
     // MARK: - Dynamic Content Helpers
     private var dynamicGreeting: String {
         let hour = Calendar.current.component(.hour, from: Date())
@@ -485,14 +341,14 @@ struct ContentView: View {
             
             if !isMenuOpen {
                 // Opening gesture - menu slides in from left
-                let progress = min(max(translation / menuWidth, 0), 1)
-                dragOffset = translation - (menuWidth * progress)
+                dragOffset = min(translation, menuWidth)
             } else {
                 // Closing gesture - menu slides out to left
                 dragOffset = min(translation, 0)
             }
         }
     }
+    
     
     private func handleDragEnded(_ value: DragGesture.Value, in geometry: GeometryProxy) {
         let translation = value.translation.width
@@ -501,24 +357,43 @@ struct ContentView: View {
         isDragging = false
         
         if !isMenuOpen {
-            // Opening gesture ended
-            if translation > menuWidth * 0.3 || velocity > 500 {
+            // Opening gesture ended - more sensitive to velocity
+            if translation > menuWidth * 0.25 || velocity > 300 {
                 withAnimation(.spring(response: 0.5, dampingFraction: 0.8, blendDuration: 0.1)) {
                     isMenuOpen = true
+                    dragOffset = 0
                 }
             } else {
-                dragOffset = 0
+                withAnimation(.spring(response: 0.3, dampingFraction: 0.9, blendDuration: 0.1)) {
+                    dragOffset = 0
+                }
             }
         } else {
-            // Closing gesture ended
-            if translation < -50 || velocity < -500 {
+            // Closing gesture ended - more sensitive to velocity
+            if translation < -30 || velocity < -300 {
                 withAnimation(.spring(response: 0.5, dampingFraction: 0.8, blendDuration: 0.1)) {
                     isMenuOpen = false
+                    dragOffset = 0
                 }
             } else {
-                dragOffset = 0
+                withAnimation(.spring(response: 0.3, dampingFraction: 0.9, blendDuration: 0.1)) {
+                    dragOffset = 0
+                }
             }
         }
+    }
+    
+    // MARK: - Navigation Bar Configuration
+    private func configureNavigationBar() {
+        let appearance = UINavigationBarAppearance()
+        appearance.configureWithTransparentBackground()
+        appearance.backgroundColor = UIColor.clear
+        appearance.shadowColor = UIColor.clear
+        
+        UINavigationBar.appearance().standardAppearance = appearance
+        UINavigationBar.appearance().scrollEdgeAppearance = appearance
+        UINavigationBar.appearance().compactAppearance = appearance
+        UINavigationBar.appearance().tintColor = UIColor.white
     }
 }
 
@@ -555,6 +430,8 @@ struct LifeModuleCard: View {
         }
         .padding(.vertical, 8)
     }
+    
+    
 }
 
 #Preview {

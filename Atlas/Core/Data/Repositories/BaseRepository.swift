@@ -17,6 +17,7 @@ class BaseRepository<T: NSManagedObject>: @unchecked Sendable {
     // MARK: - Read
     func fetchAll() -> [T] {
         let request = NSFetchRequest<T>(entityName: String(describing: T.self))
+        request.fetchBatchSize = 20 // Batch loading for performance
         
         do {
             return try context.fetch(request)
@@ -28,7 +29,7 @@ class BaseRepository<T: NSManagedObject>: @unchecked Sendable {
     
     func fetch(by id: UUID) -> T? {
         let request = NSFetchRequest<T>(entityName: String(describing: T.self))
-        request.predicate = NSPredicate(format: "id == %@", id as CVarArg)
+        request.predicate = NSPredicate(format: "uuid == %@", id as CVarArg)
         request.fetchLimit = 1
         
         do {
