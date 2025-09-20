@@ -1,10 +1,10 @@
 import SwiftUI
 import CoreData
 
-struct EditTaskView: View {
+struct EditTaskView<ViewModel: TaskViewModelProtocol>: View {
     // MARK: - Properties
     @ObservedObject var task: Task
-    @ObservedObject var viewModel: TasksViewModel
+    @ObservedObject var viewModel: ViewModel
     @Environment(\.dismiss) private var dismiss
     
     @State private var title: String = ""

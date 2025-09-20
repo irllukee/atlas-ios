@@ -268,7 +268,7 @@ struct DataExportView: View {
             }
             .sheet(isPresented: $showingShareSheet) {
                 if let url = exportedFileURL {
-                    ShareSheet(items: [url])
+                    DataExportShareSheet(items: [url])
                 }
             }
         }
@@ -451,7 +451,7 @@ struct ExportHistoryRow: View {
 }
 
 // MARK: - Share Sheet
-struct ShareSheet: UIViewControllerRepresentable {
+struct DataExportShareSheet: UIViewControllerRepresentable {
     let items: [Any]
     
     func makeUIViewController(context: Context) -> UIActivityViewController {

@@ -1,8 +1,8 @@
 import SwiftUI
 
-struct CreateTaskView: View {
+struct CreateTaskView<ViewModel: TaskViewModelProtocol>: View {
     // MARK: - Properties
-    @ObservedObject var viewModel: TasksViewModel
+    @ObservedObject var viewModel: ViewModel
     @Environment(\.dismiss) private var dismiss
     
     @State private var title: String = ""

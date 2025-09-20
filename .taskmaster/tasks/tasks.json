@@ -278,130 +278,19 @@
   },
   "currentTag": "master",
   "brainstorm-galaxy": {
-    "tasks": [
-      {
-        "id": 1,
-        "title": "Core GalaxyView Foundation",
-        "description": "Create the main GalaxyView SwiftUI component with frosted glass aesthetic and cosmic background",
-        "status": "done",
-        "priority": "high",
-        "dependencies": [],
-        "details": "Implement the main GalaxyView with sky-blue gradient background fading to deeper cosmic blue. Create the fundamental view structure that will contain all galaxy nodes. Use frosted glass material effects and establish the visual foundation for the entire feature.",
-        "testStrategy": "Verify the view renders with correct background gradient and frosted glass effects. Test on different device sizes and orientations."
-      },
-      {
-        "id": 2,
-        "title": "Node Rendering System",
-        "description": "Implement the core node rendering with semi-transparent frosted glass circles and soft glow effects",
-        "status": "done",
-        "priority": "high",
-        "dependencies": [
-          1
-        ],
-        "details": "Create GalaxyNode component with semi-transparent frosted glass circles, soft glow effects, and center pulse animation. Implement different node sizes based on content importance and color coding for different content types (dreams: purple/indigo, notes: yellow/amber, tasks: blue/cyan, journal: white).",
-        "testStrategy": "Test node rendering with different sizes, colors, and glow effects. Verify performance with multiple nodes on screen."
-      },
-      {
-        "id": 3,
-        "title": "Tap to Expand Animation",
-        "description": "Implement radial expansion animation when nodes are tapped, like fireworks opening in slow motion",
-        "status": "done",
-        "priority": "high",
-        "dependencies": [
-          2
-        ],
-        "details": "Create smooth radial expansion animation when a node is tapped. Sub-nodes should blossom outward from the parent node in a radial pattern. Animation should feel organic and natural, like fireworks opening in slow motion. Implement one layer deep expansion for MVP.",
-        "testStrategy": "Test expansion animation smoothness and timing. Verify sub-nodes appear in correct radial positions."
-      },
-      {
-        "id": 4,
-        "title": "Tap to Collapse Animation",
-        "description": "Implement collapse animation that folds sub-nodes back into the parent node",
-        "status": "done",
-        "priority": "high",
-        "dependencies": [
-          3
-        ],
-        "details": "Create reverse animation for collapsing expanded nodes. When the central node is tapped again, sub-nodes should fold back into the parent node smoothly. Animation should be the reverse of the expansion animation.",
-        "testStrategy": "Test collapse animation and verify it's the smooth reverse of expansion. Ensure no visual artifacts during collapse."
-      },
-      {
-        "id": 5,
-        "title": "Zoom and Pan Navigation",
-        "description": "Implement pinch-to-zoom and drag-to-pan navigation with smooth glide motion",
-        "status": "done",
-        "priority": "high",
-        "dependencies": [
-          1
-        ],
-        "details": "Add pinch gesture recognition for zooming in/out of galaxy clusters. Implement drag gesture for panning across the galaxy with smooth glide motion. Ensure 60fps performance during navigation. Add constraints to maintain visual hierarchy at all zoom levels.",
-        "testStrategy": "Test zoom and pan gestures for smoothness and responsiveness. Verify performance at different zoom levels."
-      },
-      {
-        "id": 6,
-        "title": "Manual Link Creation System",
-        "description": "Implement long-press to activate link mode and drag-to-connect nodes",
-        "status": "done",
-        "priority": "medium",
-        "dependencies": [
-          2
-        ],
-        "details": "Create long-press gesture recognition to activate 'link' mode with visual feedback. Implement drag gesture to create connection threads between nodes. Add visual confirmation when links are established. Links should become permanent part of the constellation with thin, glowing lines.",
-        "testStrategy": "Test long-press activation, drag-to-connect functionality, and visual feedback. Verify links persist correctly."
-      },
-      {
-        "id": 7,
-        "title": "Connection Visualization",
-        "description": "Create thin, glowing lines between connected nodes with ripple animations",
-        "status": "done",
-        "priority": "medium",
-        "dependencies": [
-          6
-        ],
-        "details": "Implement connection lines between linked nodes using thin, glowing lines. Add subtle ripple animation when clusters expand to make connections feel alive. Ensure connections are visually appealing and don't clutter the galaxy view.",
-        "testStrategy": "Test connection line rendering and ripple animations. Verify visual clarity with multiple connections."
-      },
-      {
-        "id": 8,
-        "title": "Dreams Integration",
-        "description": "Integrate existing dreams data as purple/indigo glowing stars in the galaxy",
-        "status": "done",
-        "priority": "medium",
-        "dependencies": [
-          2
-        ],
-        "details": "Connect to existing dreams data and display as stars named after recurring symbols. Dreams should have soft purple/indigo glow to distinguish from other content. Related dreams should automatically cluster together. Implement tap to expand and view dream details.",
-        "testStrategy": "Test dreams display in galaxy, clustering behavior, and integration with existing dreams data."
-      },
-      {
-        "id": 9,
-        "title": "Notes Integration",
-        "description": "Integrate existing notes as idea clusters with warm yellow/amber glow",
-        "status": "done",
-        "priority": "medium",
-        "dependencies": [
-          2
-        ],
-        "details": "Connect to existing notes data and display as idea clusters with warm yellow/amber glow. Notes with similar tags or themes should cluster together. Implement tap to expand and view note content. Allow creation of new notes directly from galaxy view.",
-        "testStrategy": "Test notes display, clustering by tags/themes, and note creation from galaxy view."
-      },
-      {
-        "id": 10,
-        "title": "Tasks Integration",
-        "description": "Integrate existing tasks as smaller stars orbiting around larger goal nodes",
-        "status": "done",
-        "priority": "medium",
-        "dependencies": [
-          2
-        ],
-        "details": "Connect to existing tasks data and display as smaller stars that orbit around larger 'goal' nodes. Show task dependencies through orbital patterns. Add visual indicators for task completion status. Allow task management directly from galaxy view.",
-        "testStrategy": "Test task display, orbital patterns, dependency visualization, and task management from galaxy."
-      }
-    ],
+    "tasks": [],
     "metadata": {
       "created": "2025-09-16T19:28:29.294Z",
       "updated": "2025-09-16T21:09:58.795Z",
       "description": "Brainstorm Galaxy feature - visual thinking tool with frosted glass nodes and cosmic navigation"
+    }
+  },
+  "recipes-feature": {
+    "tasks": [],
+    "metadata": {
+      "created": "2025-09-20T20:20:55.386Z",
+      "updated": "2025-09-20T20:20:55.386Z",
+      "description": "Complete Recipes feature implementation with recipe management, categories, search, and meal planning"
     }
   }
 }

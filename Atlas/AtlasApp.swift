@@ -67,9 +67,9 @@ struct AtlasApp: App {
     
     // MARK: - App Initialization
     private func initializeApp() {
-        // Simple synchronous initialization
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
-            withAnimation(.easeInOut(duration: 0.5)) {
+        // Fast initialization for better performance
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+            withAnimation(.easeInOut(duration: 0.3)) {
                 isAppReady = true
             }
         }

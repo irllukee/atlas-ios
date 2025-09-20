@@ -507,8 +507,8 @@ struct NotesView: View {
             viewModel.selectNote(note)
             AtlasTheme.Haptics.light()
         }
-        .staggeredAnimation(delay: Double(index) * 0.1, preset: AnimationService.smoothSlide)
-        .interactiveScale()
+        // Animation removed - was using galaxy feature
+        // Interactive glow removed - was using galaxy feature
     }
     
     // MARK: - Notes List
@@ -830,7 +830,7 @@ struct FrostedNoteCard: View {
             .scaleEffect(isPressed ? 1.02 : 1.0)
         }
         .buttonStyle(PlainButtonStyle())
-        .interactiveGlow()
+        // Interactive glow removed - was using galaxy feature
     }
 }
 
@@ -925,8 +925,8 @@ struct OptimizedNotesList: View {
                     loadMoreIfNeeded(at: index)
                 }
                 .performanceOptimized(for: note.uuid?.uuidString ?? "")
-                .staggeredAnimation(delay: Double(index) * 0.05, preset: AnimationService.bouncyScale)
-                .interactiveScale()
+                // Animation removed - was using galaxy feature
+                // Interactive glow removed - was using galaxy feature
             }
             
             // Loading indicator for pagination

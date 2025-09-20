@@ -1,0 +1,113 @@
+# Recipes Feature - Product Requirements Document
+
+## Overview
+The Recipes feature will transform Atlas into a comprehensive recipe management and meal planning application. This feature will allow users to create, organize, search, and plan their recipes with a beautiful, intuitive interface that matches Atlas's existing design language.
+
+## Core Features
+
+### 1. Recipe Management
+- **Create Recipes**: Full recipe creation with ingredients, instructions, cooking time, difficulty level, and serving size
+- **Edit Recipes**: Modify existing recipes with version history
+- **Delete Recipes**: Safe deletion with confirmation
+- **Recipe Categories**: Organize recipes by meal type (Breakfast, Lunch, Dinner, Snacks, Drinks) and cuisine type
+- **Recipe Tags**: Custom tagging system for flexible organization (vegetarian, quick, family-favorite, etc.)
+
+### 2. Recipe Display & UI
+- **Recipe Cards**: Beautiful card-based layout showing recipe previews with images
+- **Recipe Detail View**: Full-screen recipe view with step-by-step instructions
+- **Ingredient Lists**: Formatted ingredient lists with measurements
+- **Cooking Instructions**: Step-by-step instructions with optional timers
+- **Recipe Images**: Support for multiple images per recipe with photo capture/import
+- **Nutrition Information**: Basic nutrition facts (calories, protein, carbs, fat)
+
+### 3. Search & Discovery
+- **Text Search**: Search recipes by name, ingredients, or instructions
+- **Filter System**: Filter by category, difficulty, cooking time, dietary restrictions
+- **Sort Options**: Sort by name, date added, cooking time, rating, popularity
+- **Smart Suggestions**: Recommend recipes based on available ingredients
+- **Recent Recipes**: Quick access to recently viewed or cooked recipes
+
+### 4. Meal Planning
+- **Weekly Meal Planner**: Visual calendar for planning meals
+- **Shopping Lists**: Auto-generate shopping lists from selected recipes
+- **Meal Prep Mode**: Plan and organize meal prep sessions
+- **Recipe Scaling**: Scale ingredients for different serving sizes
+- **Leftover Planning**: Track and plan for leftovers
+
+### 5. Recipe Sharing & Import
+- **Recipe Import**: Import recipes from URLs (web scraping)
+- **Recipe Sharing**: Share recipes with friends via links or export
+- **Export Options**: Export recipes to PDF, text, or other formats
+- **Recipe Collections**: Create and share curated recipe collections
+
+## Technical Requirements
+
+### Data Models
+- **Recipe**: Core recipe entity with all recipe information
+- **Ingredient**: Individual ingredient with name, amount, unit, and notes
+- **RecipeCategory**: Categories for organizing recipes
+- **RecipeTag**: Custom tags for flexible organization
+- **RecipeImage**: Multiple images per recipe
+- **MealPlan**: Weekly meal planning data
+- **ShoppingList**: Generated shopping lists from meal plans
+
+### Core Data Integration
+- Integrate with existing Core Data stack
+- Use existing Atlas theme and design system
+- Follow existing security and encryption patterns
+- Implement proper data validation and error handling
+
+### Performance Requirements
+- Fast recipe search with Core Data predicates
+- Efficient image loading and caching
+- Smooth scrolling with large recipe collections
+- Offline functionality for viewing saved recipes
+
+### UI/UX Requirements
+- Follow Atlas design system (FrostedCard, AtlasTheme, etc.)
+- Responsive design for different screen sizes
+- Accessibility compliance (VoiceOver, Dynamic Type)
+- Smooth animations and transitions
+- Dark mode support
+
+## Implementation Phases
+
+### Phase 1: Core Recipe Management
+- Basic recipe CRUD operations
+- Recipe list and detail views
+- Basic category system
+- Simple search functionality
+
+### Phase 2: Enhanced UI & Organization
+- Recipe cards with images
+- Advanced filtering and sorting
+- Tag system implementation
+- Recipe import from URLs
+
+### Phase 3: Meal Planning
+- Weekly meal planner interface
+- Shopping list generation
+- Recipe scaling functionality
+- Meal prep organization
+
+### Phase 4: Advanced Features
+- Recipe sharing and export
+- Nutrition information integration
+- Smart recipe suggestions
+- Recipe collections and curation
+
+## Success Metrics
+- Users can create and manage recipes efficiently
+- Recipe search and discovery is fast and intuitive
+- Meal planning reduces time spent on food preparation decisions
+- Recipe sharing increases user engagement
+- Feature integrates seamlessly with existing Atlas functionality
+
+## Dependencies
+- Existing Atlas Core Data stack
+- Atlas theme and design system
+- Image handling and storage services
+- Network services for recipe import
+- Existing authentication and security systems
+
+

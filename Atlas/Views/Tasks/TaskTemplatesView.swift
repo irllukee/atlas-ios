@@ -1,8 +1,8 @@
 import SwiftUI
 
-struct TaskTemplatesView: View {
+struct TaskTemplatesView<ViewModel: TaskViewModelProtocol>: View {
     // MARK: - Properties
-    @ObservedObject var viewModel: TasksViewModel
+    @ObservedObject var viewModel: ViewModel
     @Environment(\.dismiss) private var dismiss
     
     let templates: [TaskTemplate] = [

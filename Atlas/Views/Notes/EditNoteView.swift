@@ -10,12 +10,14 @@ struct EditNoteView: View {
     @Environment(\.dismiss) private var dismiss
     
     @State private var title: String = ""
-    @State private var content: String = ""
+    @State private var attributedContent: NSAttributedString = NSAttributedString()
     @State private var isEncrypted: Bool = false
     @State private var hasChanges = false
     @State private var showingFormattingToolbar = false
     @State private var showingMoreOptions = false
     @State private var showingDeleteConfirmation = false
+    @State private var richTextEditor: RichTextEditor?
+    @State private var isEditing = false
     
     @FocusState private var isTitleFocused: Bool
     @FocusState private var isContentFocused: Bool
@@ -62,73 +64,12 @@ struct EditNoteView: View {
                 }
                 
                 ToolbarItemGroup(placement: .bottomBar) {
-                    // Formatting toolbar
-                    HStack(spacing: 20) {
-                        // Bold
-                        Button(action: { 
-                            AtlasTheme.Haptics.light()
-                            // TODO: Implement bold formatting
-                        }) {
-                            Image(systemName: "bold")
-                                .font(.system(size: 18, weight: .medium))
+                    FormattingToolbar(
+                        richTextEditor: $richTextEditor,
+                        onFormattingChange: { _ in
+                            hasChanges = true
                         }
-                        .foregroundColor(.primary)
-                        
-                        // Italic
-                        Button(action: { 
-                            AtlasTheme.Haptics.light()
-                            // TODO: Implement italic formatting
-                        }) {
-                            Image(systemName: "italic")
-                                .font(.system(size: 18, weight: .medium))
-                        }
-                        .foregroundColor(.primary)
-                        
-                        // Underline
-                        Button(action: { 
-                            AtlasTheme.Haptics.light()
-                            // TODO: Implement underline formatting
-                        }) {
-                            Image(systemName: "underline")
-                                .font(.system(size: 18, weight: .medium))
-                        }
-                        .foregroundColor(.primary)
-                        
-                        Spacer()
-                        
-                        // Checklist
-                        Button(action: { 
-                            AtlasTheme.Haptics.light()
-                            // TODO: Implement checklist
-                        }) {
-                            Image(systemName: "checklist")
-                                .font(.system(size: 18, weight: .medium))
-                        }
-                        .foregroundColor(.primary)
-                        
-                        // Camera
-                        Button(action: { 
-                            AtlasTheme.Haptics.light()
-                            // TODO: Implement camera/photo picker
-                        }) {
-                            Image(systemName: "camera")
-                                .font(.system(size: 18, weight: .medium))
-                        }
-                        .foregroundColor(.primary)
-                        
-                        // More options
-                        Button(action: { 
-                            AtlasTheme.Haptics.light()
-                            showingMoreOptions = true
-                        }) {
-                            Image(systemName: "ellipsis.circle")
-                                .font(.system(size: 18, weight: .medium))
-                        }
-                        .foregroundColor(.primary)
-                    }
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 8)
-                    .background(Color(.systemGray6))
+                    )
                 }
             }
             .sheet(isPresented: $showingMoreOptions) {
@@ -171,17 +112,26 @@ struct EditNoteView: View {
     // MARK: - Content Field
     private var contentField: some View {
         VStack(alignment: .leading, spacing: 0) {
-            TextEditor(text: $content)
-                .font(.system(size: 16, weight: .regular, design: .default))
-                .foregroundColor(.primary)
-                .focused($isContentFocused)
-                .scrollContentBackground(.hidden)
-                .background(Color.clear)
-                .onChange(of: content) {
-                    checkForChanges()
+            RichTextEditor(
+                attributedText: $attributedContent,
+                isEditing: $isEditing,
+                placeholder: "Start typing your note...",
+                font: UIFont.systemFont(ofSize: 16),
+                textColor: UIColor.label,
+                backgroundColor: UIColor.systemBackground
+            )
+            .frame(minHeight: 200)
+            .onChange(of: attributedContent) {
+                checkForChanges()
+            }
+            .onAppear {
+                // Initialize the rich text editor reference
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                    // This will be set when the RichTextEditor is created
                 }
-                .padding(.horizontal, 16)
-                .padding(.vertical, 8)
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 8)
         }
         .background(Color.white)
     }
@@ -294,23 +244,46 @@ struct EditNoteView: View {
     // MARK: - Actions
     private func loadNoteData() {
         title = note.title ?? ""
-        content = note.content ?? ""
+        
+        // Load content as NSAttributedString if it contains formatting, otherwise as plain text
+        if let contentString = note.content {
+            if contentString.isEmpty {
+                attributedContent = NSAttributedString()
+            } else {
+                // Try to parse as attributed string, fallback to plain text
+                if let data = contentString.data(using: .utf8),
+                   let attributed = try? NSAttributedString(data: data, options: [.documentType: NSAttributedString.DocumentType.rtf], documentAttributes: nil) {
+                    attributedContent = attributed
+                } else {
+                    // Fallback to plain text
+                    attributedContent = NSAttributedString(string: contentString)
+                }
+            }
+        } else {
+            attributedContent = NSAttributedString()
+        }
+        
         isEncrypted = note.isEncrypted
     }
     
     private func checkForChanges() {
+        let currentContent = attributedContent.string
         hasChanges = title != (note.title ?? "") ||
-                    content != (note.content ?? "") ||
+                    currentContent != (note.content ?? "") ||
                     isEncrypted != note.isEncrypted
     }
     
     private func saveNote() {
         guard hasChanges else { return }
         
+        // Convert NSAttributedString to string for storage
+        // For now, we'll store as plain text, but could be enhanced to store RTF data
+        let contentString = attributedContent.string
+        
         viewModel.updateNote(
             note,
-            title: title,
-            content: content,
+            title: title.isEmpty ? "Untitled Note" : title,
+            content: contentString,
             category: nil
         )
         

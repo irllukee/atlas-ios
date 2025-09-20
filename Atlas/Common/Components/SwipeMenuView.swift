@@ -18,7 +18,9 @@ struct SwipeMenuView: View {
         (.journal, "book.fill", "Journal"),
         (.calendar, "calendar", "Calendar"),
         (.analytics, "chart.bar.fill", "Analytics"),
-        (.brainstormGalaxy, "sparkles", "Brainstorm Galaxy"),
+        (.watchlist, "tv", "Watchlist"),
+        (.recipes, "fork.knife", "Recipes"),
+        (.mindMapping, "brain.head.profile", "Mind Mapping"),
         (.profile, "person.circle", "Profile")
     ]
     

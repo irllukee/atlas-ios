@@ -27,6 +27,7 @@ struct ContentView: View {
     // MARK: - Initialization
     init() {
         // Initialize dashboard data service lazily to avoid blocking app startup
+        // This will be created on first access to improve startup performance
         self._dashboardDataService = StateObject(wrappedValue: DashboardDataService(
             dataManager: DataManager.shared,
             calendarService: CalendarService(),
@@ -103,8 +104,12 @@ struct ContentView: View {
             CalendarView()
         case .analytics:
             AnalyticsNavigationView()
-        case .brainstormGalaxy:
-            GalaxyView()
+        case .watchlist:
+            WatchlistView(dataManager: dataManager)
+        case .recipes:
+            RecipesView()
+        case .mindMapping:
+            MindMappingView(dataManager: dataManager)
         case .profile:
             ProfileView()
     }
@@ -295,6 +300,7 @@ struct ContentView: View {
                 )
                 .scaleEffect(0.7)
                 .frame(width: 180, height: 90)
+                
             }
             .padding(.trailing, 0)
         }

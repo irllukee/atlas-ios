@@ -1,8 +1,8 @@
 import SwiftUI
 
-struct TasksFilterView: View {
+struct TasksFilterView<ViewModel: TaskViewModelProtocol>: View {
     // MARK: - Properties
-    @ObservedObject var viewModel: TasksViewModel
+    @ObservedObject var viewModel: ViewModel
     @Environment(\.dismiss) private var dismiss
     
     @State private var selectedFilter: TaskFilter = .all
