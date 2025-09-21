@@ -29,7 +29,7 @@ struct AddStepView: View {
                                         TextEditor(text: $content)
                                             .frame(minHeight: 120)
                                             .padding(AtlasTheme.Spacing.sm)
-                                            .background(AtlasTheme.Colors.cardBackground.opacity(0.3))
+                                            .background(AtlasTheme.Colors.glassBackground.opacity(0.3))
                                             .cornerRadius(AtlasTheme.CornerRadius.small)
                                     }
                                     
@@ -87,7 +87,7 @@ struct AddStepView: View {
                                                         .foregroundColor(AtlasTheme.Colors.secondaryText)
                                                         .padding(.horizontal, AtlasTheme.Spacing.sm)
                                                         .padding(.vertical, AtlasTheme.Spacing.xs)
-                                                        .background(AtlasTheme.Colors.cardBackground.opacity(0.3))
+                                                        .background(AtlasTheme.Colors.glassBackground.opacity(0.3))
                                                         .cornerRadius(AtlasTheme.CornerRadius.small)
                                                     }
                                                 }
@@ -152,7 +152,7 @@ struct AddStepView: View {
                                 .multilineTextAlignment(.center)
                                 .padding(.horizontal, AtlasTheme.Spacing.md)
                                 .padding(.vertical, AtlasTheme.Spacing.sm)
-                                .background(AtlasTheme.Colors.cardBackground.opacity(0.3))
+                                .background(AtlasTheme.Colors.glassBackground.opacity(0.3))
                                 .cornerRadius(AtlasTheme.CornerRadius.small)
                         }
                     }

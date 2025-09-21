@@ -17,10 +17,10 @@ protocol TaskViewModelProtocol: ObservableObject {
     func changeSortOrder(_ order: TaskSortOrder)
 }
 
-extension TasksViewModel: @preconcurrency TaskViewModelProtocol {
+extension TasksViewModel: TaskViewModelProtocol {
     // Already implements the required methods
 }
 
-extension TabbedTasksViewModel: @preconcurrency TaskViewModelProtocol {
+extension TabbedTasksViewModel: TaskViewModelProtocol {
     // Already implements the required methods
 }

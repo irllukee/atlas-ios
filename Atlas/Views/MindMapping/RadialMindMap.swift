@@ -433,7 +433,8 @@ struct RadialMindMap: View {
                 guard let dragNode = findNode(with: uuid) else { return }
                 
                 // Prevent making a node its own ancestor
-                if isAncestor(dragNode, of: target) { return }
+                let targetNode = target
+                if isAncestor(dragNode, of: targetNode) { return }
 
                 // Remove from old parent
                 if let oldParent = dragNode.parent {

@@ -319,17 +319,6 @@ struct RecipeCard: View {
     @State private var showRecipeDetail = false
     @StateObject private var photoService = PhotoService()
     
-    private var timeText: String {
-        let totalMinutes = recipe.prepTime + recipe.cookingTime
-        if totalMinutes < 60 {
-            return "\(totalMinutes)m"
-        } else {
-            let hours = totalMinutes / 60
-            let minutes = totalMinutes % 60
-            return minutes > 0 ? "\(hours)h \(minutes)m" : "\(hours)h"
-        }
-    }
-    
     var body: some View {
         Button(action: {
             showRecipeDetail = true
@@ -422,8 +411,20 @@ struct RecipeCard: View {
                     }
                 }
             }
+        }
         .sheet(isPresented: $showRecipeDetail) {
             RecipeDetailView(recipe: recipe, recipesService: recipesService)
+        }
+    }
+    
+    private var timeText: String {
+        let totalMinutes = recipe.prepTime + recipe.cookingTime
+        if totalMinutes < 60 {
+            return "\(totalMinutes)m"
+        } else {
+            let hours = totalMinutes / 60
+            let minutes = totalMinutes % 60
+            return minutes > 0 ? "\(hours)h \(minutes)m" : "\(hours)h"
         }
     }
 }

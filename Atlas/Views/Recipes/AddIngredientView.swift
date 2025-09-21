@@ -24,9 +24,9 @@ struct AddIngredientView: View {
                                 
                                 VStack(spacing: AtlasTheme.Spacing.md) {
                                     AtlasTextField(
-                                        title: "Ingredient Name",
-                                        text: $name,
-                                        placeholder: "e.g., Flour, Salt, Olive Oil"
+                                        "Ingredient Name",
+                                        placeholder: "e.g., Flour, Salt, Olive Oil",
+                                        text: $name
                                     )
                                     
                                     HStack(spacing: AtlasTheme.Spacing.md) {
@@ -39,7 +39,7 @@ struct AddIngredientView: View {
                                                 .textFieldStyle(PlainTextFieldStyle())
                                                 .font(AtlasTheme.Typography.body)
                                                 .padding(AtlasTheme.Spacing.md)
-                                                .background(AtlasTheme.Colors.cardBackground.opacity(0.3))
+                                                .background(AtlasTheme.Colors.glassBackground.opacity(0.3))
                                                 .cornerRadius(AtlasTheme.CornerRadius.small)
                                         }
                                         
@@ -52,7 +52,7 @@ struct AddIngredientView: View {
                                                 .textFieldStyle(PlainTextFieldStyle())
                                                 .font(AtlasTheme.Typography.body)
                                                 .padding(AtlasTheme.Spacing.md)
-                                                .background(AtlasTheme.Colors.cardBackground.opacity(0.3))
+                                                .background(AtlasTheme.Colors.glassBackground.opacity(0.3))
                                                 .cornerRadius(AtlasTheme.CornerRadius.small)
                                         }
                                     }
@@ -66,7 +66,7 @@ struct AddIngredientView: View {
                                             .textFieldStyle(PlainTextFieldStyle())
                                             .font(AtlasTheme.Typography.body)
                                             .padding(AtlasTheme.Spacing.md)
-                                            .background(AtlasTheme.Colors.cardBackground.opacity(0.3))
+                                            .background(AtlasTheme.Colors.glassBackground.opacity(0.3))
                                             .cornerRadius(AtlasTheme.CornerRadius.small)
                                     }
                                     
@@ -140,7 +140,7 @@ struct AddIngredientView: View {
                                 .foregroundColor(self.unit == unit ? .white : AtlasTheme.Colors.text)
                                 .padding(.horizontal, AtlasTheme.Spacing.md)
                                 .padding(.vertical, AtlasTheme.Spacing.sm)
-                                .background(self.unit == unit ? AtlasTheme.Colors.primary : AtlasTheme.Colors.cardBackground.opacity(0.3))
+                                .background(self.unit == unit ? AtlasTheme.Colors.primary : AtlasTheme.Colors.glassBackground.opacity(0.3))
                                 .cornerRadius(AtlasTheme.CornerRadius.small)
                         }
                     }
@@ -151,7 +151,7 @@ struct AddIngredientView: View {
     
     // MARK: - Computed Properties
     private var previewText: String {
-        var text = "\(amount, specifier: "%.1f")"
+        var text = String(format: "%.1f", amount)
         if !unit.isEmpty {
             text += " \(unit)"
         }

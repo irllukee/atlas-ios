@@ -16,7 +16,7 @@ struct RecipeDetailView: View {
     init(recipe: Recipe, recipesService: RecipesService) {
         self.recipe = recipe
         self.recipesService = recipesService
-        self._shoppingListService = StateObject(wrappedValue: ShoppingListService(dataManager: DependencyContainer.shared.dataManager))
+        self._shoppingListService = StateObject(wrappedValue: ShoppingListService(dataManager: DataManager.shared))
     }
     
     var body: some View {
@@ -27,38 +27,37 @@ struct RecipeDetailView: View {
                 
                 ScrollView {
                     VStack(spacing: AtlasTheme.Spacing.lg) {
-                        // Recipe Header
-                        recipeHeaderSection
+                        // Header
+                        headerSection
                         
-                        // Recipe Info
-                        recipeInfoSection
-                        
-                        // Ingredients Section
+                        // Ingredients
                         ingredientsSection
                         
-                        // Instructions Section
+                        // Instructions
                         instructionsSection
                         
-                        // Tags Section
-                        if let tags = recipe.tags, !tags.isEmpty {
-                            tagsSection(tags: tags)
-                        }
-                        
-                        Spacer(minLength: 100)
+                        // Additional Info
+                        additionalInfoSection
                     }
-                    .padding(.horizontal, AtlasTheme.Spacing.lg)
-                    .padding(.top, AtlasTheme.Spacing.md)
+                    .padding(AtlasTheme.Spacing.lg)
                 }
             }
-            .navigationTitle("Recipe")
+            .navigationBarTitle("Recipe Details", displayMode: .inline)
             .navigationBarTitleDisplayMode(.inline)
             .navigationBarBackButtonHidden(true)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
-                    Button("Done") {
+                    Button(action: {
                         presentationMode.wrappedValue.dismiss()
+                    }) {
+                        HStack(spacing: AtlasTheme.Spacing.xs) {
+                            Image(systemName: "chevron.left")
+                                .font(.system(size: 16, weight: .medium))
+                            Text("Back")
+                                .font(AtlasTheme.Typography.body)
+                        }
+                        .foregroundColor(AtlasTheme.Colors.primary)
                     }
-                    .foregroundColor(AtlasTheme.Colors.primary)
                 }
                 
                 ToolbarItem(placement: .navigationBarTrailing) {
@@ -70,16 +69,9 @@ struct RecipeDetailView: View {
                         }
                         
                         Button(action: {
-                            recipesService.toggleFavorite(recipe)
+                            showShareSheet = true
                         }) {
-                            Label(recipe.isFavorite ? "Remove from Favorites" : "Add to Favorites", 
-                                  systemImage: recipe.isFavorite ? "heart.slash" : "heart")
-                        }
-                        
-                        Button(action: {
-                            showAddToShoppingList = true
-                        }) {
-                            Label("Add to Shopping List", systemImage: "cart.badge.plus")
+                            Label("Share Recipe", systemImage: "square.and.arrow.up")
                         }
                         
                         Button(action: {
@@ -89,137 +81,94 @@ struct RecipeDetailView: View {
                         }
                         
                         Button(action: {
-                            showShareSheet = true
+                            _ = recipesService.createTemplate(from: recipe)
                         }) {
-                            Label("Share Recipe", systemImage: "square.and.arrow.up")
+                            Label("Save as Template", systemImage: "doc.badge.plus")
                         }
                         
-                        Divider()
-                        
                         Button(action: {
-                            let template = recipesService.createTemplate(from: recipe)
-                            showEditRecipe = true
+                            recipesService.toggleFavorite(recipe)
                         }) {
-                            Label("Create Template", systemImage: "doc.on.doc")
+                            Label(recipe.isFavorite ? "Remove from Favorites" : "Add to Favorites", 
+                                  systemImage: recipe.isFavorite ? "heart.slash" : "heart")
                         }
                     } label: {
                         Image(systemName: "ellipsis.circle")
-                            .foregroundColor(AtlasTheme.Colors.text)
+                            .font(.title3)
+                            .foregroundColor(AtlasTheme.Colors.primary)
                     }
                 }
             }
         }
         .sheet(isPresented: $showEditRecipe) {
-            EditRecipeView(recipe: recipe, recipesService: recipesService)
+            if let editView = createEditRecipeView() {
+                editView
+            }
         }
         .sheet(isPresented: $showAddToShoppingList) {
-            AddToShoppingListView(
-                recipe: recipe,
-                shoppingListService: shoppingListService
-            )
+            AddToShoppingListView(recipe: recipe, shoppingListService: shoppingListService)
         }
         .sheet(isPresented: $showShareSheet) {
             ShareSheet(items: [recipeShareText])
         }
         .sheet(isPresented: $showPhotoCapture) {
-            PhotoCaptureView(selectedImage: $selectedImage)
+            RecipePhotoCaptureView(selectedImage: $selectedImage)
         }
-        .onChange(of: selectedImage) { image in
+        .onChange(of: selectedImage) { _, image in
             if let image = image {
-                photoService.addImageToRecipe(image, recipe: recipe, isCoverImage: true)
+                _ = photoService.addImageToRecipe(image, recipe: recipe, isCoverImage: true)
             }
         }
     }
     
-    // MARK: - Recipe Header Section
-    private var recipeHeaderSection: some View {
-        FrostedCard(style: .floating) {
-            VStack(spacing: AtlasTheme.Spacing.lg) {
-                // Recipe Image
-                if let coverImage = photoService.getCoverImage(for: recipe) {
-                    Image(uiImage: coverImage)
-                        .resizable()
-                        .aspectRatio(contentMode: .fill)
-                        .frame(height: 200)
-                        .clipped()
-                        .cornerRadius(AtlasTheme.CornerRadius.medium)
-                } else {
-                    Rectangle()
-                        .fill(AtlasTheme.Colors.cardBackground.opacity(0.3))
-                        .frame(height: 200)
-                        .cornerRadius(AtlasTheme.CornerRadius.medium)
-                        .overlay(
-                            VStack(spacing: AtlasTheme.Spacing.sm) {
-                                Image(systemName: "photo")
-                                    .font(.system(size: 40))
-                                    .foregroundColor(AtlasTheme.Colors.secondaryText)
-                                Text("No Image")
-                                    .font(AtlasTheme.Typography.caption)
-                                    .foregroundColor(AtlasTheme.Colors.secondaryText)
-                            }
-                        )
-                }
-                
-                // Title and Category
-                VStack(spacing: AtlasTheme.Spacing.md) {
-                    HStack {
-                        Text(recipe.title ?? "Untitled Recipe")
-                            .font(AtlasTheme.Typography.largeTitle)
-                            .fontWeight(.bold)
-                            .foregroundColor(AtlasTheme.Colors.text)
-                            .multilineTextAlignment(.leading)
-                        
-                        Spacer()
-                        
-                        Button(action: {
-                            recipesService.toggleFavorite(recipe)
-                        }) {
-                            Image(systemName: recipe.isFavorite ? "heart.fill" : "heart")
-                                .font(.title2)
-                                .foregroundColor(recipe.isFavorite ? AtlasTheme.Colors.primary : AtlasTheme.Colors.secondaryText)
+    // MARK: - Header Section
+    private var headerSection: some View {
+        VStack(alignment: .leading, spacing: AtlasTheme.Spacing.md) {
+            // Recipe Image
+            if let coverImage = photoService.getCoverImage(for: recipe) {
+                Image(uiImage: coverImage)
+                    .resizable()
+                    .aspectRatio(contentMode: .fill)
+                    .frame(height: 200)
+                    .clipped()
+                    .cornerRadius(AtlasTheme.CornerRadius.large)
+            } else {
+                Rectangle()
+                    .fill(AtlasTheme.Colors.glassBackground.opacity(0.3))
+                    .frame(height: 200)
+                    .cornerRadius(AtlasTheme.CornerRadius.large)
+                    .overlay(
+                        VStack {
+                            Image(systemName: "photo")
+                                .font(.largeTitle)
+                                .foregroundColor(AtlasTheme.Colors.secondaryText)
+                            Text("No Image")
+                                .font(AtlasTheme.Typography.body)
+                                .foregroundColor(AtlasTheme.Colors.secondaryText)
                         }
-                    }
-                    
-                    if let category = recipe.category {
-                        HStack(spacing: AtlasTheme.Spacing.sm) {
-                            Image(systemName: category.icon ?? "questionmark")
-                                .font(.caption)
-                            Text(category.name ?? "Unknown Category")
-                                .font(AtlasTheme.Typography.caption)
-                        }
-                        .foregroundColor(AtlasTheme.Colors.primary)
-                        .padding(.horizontal, AtlasTheme.Spacing.md)
-                        .padding(.vertical, AtlasTheme.Spacing.sm)
-                        .background(AtlasTheme.Colors.primary.opacity(0.1))
-                        .cornerRadius(AtlasTheme.CornerRadius.small)
-                    }
-                    
-                    if let description = recipe.recipeDescription, !description.isEmpty {
-                        Text(description)
-                            .font(AtlasTheme.Typography.body)
-                            .foregroundColor(AtlasTheme.Colors.secondaryText)
-                            .multilineTextAlignment(.center)
-                    }
-                }
+                    )
             }
-        }
-    }
-    
-    // MARK: - Recipe Info Section
-    private var recipeInfoSection: some View {
-        FrostedCard {
-            VStack(spacing: AtlasTheme.Spacing.md) {
-                SectionHeader(title: "Recipe Info")
+            
+            // Recipe Title and Info
+            VStack(alignment: .leading, spacing: AtlasTheme.Spacing.sm) {
+                Text(recipe.title ?? "Untitled Recipe")
+                    .font(AtlasTheme.Typography.title2)
+                    .fontWeight(.bold)
+                    .foregroundColor(AtlasTheme.Colors.text)
                 
-                LazyVGrid(columns: [
-                    GridItem(.flexible()),
-                    GridItem(.flexible()),
-                    GridItem(.flexible())
-                ], spacing: AtlasTheme.Spacing.md) {
+                if let description = recipe.recipeDescription, !description.isEmpty {
+                    Text(description)
+                        .font(AtlasTheme.Typography.body)
+                        .foregroundColor(AtlasTheme.Colors.secondaryText)
+                        .lineLimit(nil)
+                }
+                
+                // Recipe Info Cards
+                HStack(spacing: AtlasTheme.Spacing.md) {
                     if recipe.prepTime > 0 {
                         InfoCard(
                             title: "Prep Time",
-                            value: "\(recipe.prepTime)m",
+                            value: formatTime(recipe.prepTime),
                             icon: "clock"
                         )
                     }
@@ -227,24 +176,44 @@ struct RecipeDetailView: View {
                     if recipe.cookingTime > 0 {
                         InfoCard(
                             title: "Cook Time",
-                            value: "\(recipe.cookingTime)m",
-                            icon: "timer"
+                            value: formatTime(recipe.cookingTime),
+                            icon: "flame"
                         )
                     }
                     
-                    InfoCard(
-                        title: "Servings",
-                        value: "\(recipe.servings)",
-                        icon: "person.2"
-                    )
-                    
-                    InfoCard(
-                        title: "Difficulty",
-                        value: difficultyText,
-                        icon: "star"
-                    )
+                    if recipe.servings > 0 {
+                        InfoCard(
+                            title: "Servings",
+                            value: "\(recipe.servings)",
+                            icon: "person.2"
+                        )
+                    }
                 }
                 
+                // Category and Tags
+                HStack {
+                    if let category = recipe.category {
+                        HStack(spacing: AtlasTheme.Spacing.xs) {
+                            Image(systemName: category.icon ?? "questionmark")
+                                .font(.caption)
+                            Text(category.name ?? "Unknown")
+                                .font(AtlasTheme.Typography.caption)
+                        }
+                        .foregroundColor(AtlasTheme.Colors.secondaryText)
+                    }
+                    
+                    Spacer()
+                    
+                    Button(action: {
+                        recipesService.toggleFavorite(recipe)
+                    }) {
+                        Image(systemName: recipe.isFavorite ? "heart.fill" : "heart")
+                            .font(.title3)
+                            .foregroundColor(recipe.isFavorite ? AtlasTheme.Colors.primary : AtlasTheme.Colors.secondaryText)
+                    }
+                }
+                
+                // Source URL
                 if let sourceURL = recipe.sourceURL, !sourceURL.isEmpty {
                     HStack {
                         Text("Source:")
@@ -265,164 +234,155 @@ struct RecipeDetailView: View {
     
     // MARK: - Ingredients Section
     private var ingredientsSection: some View {
-        FrostedCard {
-            VStack(spacing: AtlasTheme.Spacing.md) {
-                HStack {
-                    SectionHeader(title: "Ingredients")
-                    Spacer()
-                    Button(action: {
-                        showAddToShoppingList = true
-                    }) {
-                        Text("Add All to Shopping")
-                            .font(AtlasTheme.Typography.caption)
-                            .foregroundColor(AtlasTheme.Colors.primary)
-                            .padding(.horizontal, AtlasTheme.Spacing.md)
-                            .padding(.vertical, AtlasTheme.Spacing.sm)
-                            .background(AtlasTheme.Colors.primary.opacity(0.1))
-                            .cornerRadius(AtlasTheme.CornerRadius.small)
-                    }
-                }
+        VStack(alignment: .leading, spacing: AtlasTheme.Spacing.md) {
+            HStack {
+                Text("Ingredients")
+                    .font(AtlasTheme.Typography.headline)
+                    .fontWeight(.semibold)
+                    .foregroundColor(AtlasTheme.Colors.text)
                 
-                if let ingredients = recipe.ingredients, !ingredients.isEmpty {
-                    ForEach(Array(ingredients), id: \.uuid) { ingredient in
-                        if let recipeIngredient = ingredient as? RecipeIngredient {
-                            IngredientDetailRow(
-                                ingredient: recipeIngredient,
-                                onAddToShopping: {
-                                    shoppingListService.addItem(
-                                        name: recipeIngredient.name ?? "",
-                                        amount: recipeIngredient.amount,
-                                        unit: recipeIngredient.unit,
-                                        notes: recipeIngredient.notes,
-                                        sourceRecipe: recipe
-                                    )
-                                }
-                            )
-                        }
-                    }
-                } else {
-                    VStack(spacing: AtlasTheme.Spacing.sm) {
-                        Image(systemName: "list.bullet")
-                            .font(.title2)
-                            .foregroundColor(AtlasTheme.Colors.secondaryText)
-                        
-                        Text("No ingredients listed")
-                            .font(AtlasTheme.Typography.caption)
-                            .foregroundColor(AtlasTheme.Colors.secondaryText)
-                    }
-                    .padding(.vertical, AtlasTheme.Spacing.lg)
+                Spacer()
+                
+                Button(action: {
+                    showAddToShoppingList = true
+                }) {
+                    Text("Add to Shopping")
+                        .font(AtlasTheme.Typography.caption)
+                        .foregroundColor(AtlasTheme.Colors.primary)
+                        .padding(.horizontal, AtlasTheme.Spacing.md)
+                        .padding(.vertical, AtlasTheme.Spacing.sm)
+                        .background(AtlasTheme.Colors.primary.opacity(0.1))
+                        .cornerRadius(AtlasTheme.CornerRadius.small)
                 }
             }
+            
+            if let ingredients = recipe.ingredients, ingredients.count > 0 {
+                VStack(spacing: AtlasTheme.Spacing.sm) {
+                    ForEach(ingredients.allObjects.compactMap { $0 as? RecipeIngredient }, id: \.uuid) { ingredient in
+                        IngredientRowView(ingredient: ingredient)
+                    }
+                }
+            } else {
+                VStack(spacing: AtlasTheme.Spacing.sm) {
+                    Image(systemName: "list.bullet")
+                        .font(.title2)
+                        .foregroundColor(AtlasTheme.Colors.secondaryText)
+                    
+                    Text("No ingredients listed")
+                        .font(AtlasTheme.Typography.body)
+                        .foregroundColor(AtlasTheme.Colors.secondaryText)
+                }
+                .padding(.vertical, AtlasTheme.Spacing.lg)
+            }
         }
+        .padding(AtlasTheme.Spacing.md)
+        .background(AtlasTheme.Colors.glassBackground.opacity(0.3))
+        .cornerRadius(AtlasTheme.CornerRadius.medium)
     }
     
     // MARK: - Instructions Section
     private var instructionsSection: some View {
-        FrostedCard {
-            VStack(spacing: AtlasTheme.Spacing.md) {
-                SectionHeader(title: "Instructions")
-                
-                if let steps = recipe.steps, !steps.isEmpty {
-                    ForEach(Array(steps).sorted(by: { ($0 as? RecipeStep)?.order ?? 0 < ($1 as? RecipeStep)?.order ?? 0 }), id: \.uuid) { step in
-                        if let recipeStep = step as? RecipeStep {
-                            StepDetailRow(step: recipeStep)
-                        }
+        VStack(alignment: .leading, spacing: AtlasTheme.Spacing.md) {
+            Text("Instructions")
+                .font(AtlasTheme.Typography.headline)
+                .fontWeight(.semibold)
+                .foregroundColor(AtlasTheme.Colors.text)
+            
+            if let steps = recipe.steps, steps.count > 0 {
+                VStack(spacing: AtlasTheme.Spacing.md) {
+                    ForEach(steps.allObjects.compactMap { $0 as? RecipeStep }.sorted(by: { $0.order < $1.order }), id: \.uuid) { step in
+                        StepRowView(step: step)
                     }
-                } else {
-                    VStack(spacing: AtlasTheme.Spacing.sm) {
-                        Image(systemName: "list.number")
-                            .font(.title2)
-                            .foregroundColor(AtlasTheme.Colors.secondaryText)
-                        
-                        Text("No instructions provided")
-                            .font(AtlasTheme.Typography.caption)
-                            .foregroundColor(AtlasTheme.Colors.secondaryText)
-                    }
-                    .padding(.vertical, AtlasTheme.Spacing.lg)
                 }
+            } else {
+                VStack(spacing: AtlasTheme.Spacing.sm) {
+                    Image(systemName: "list.number")
+                        .font(.title2)
+                        .foregroundColor(AtlasTheme.Colors.secondaryText)
+                    
+                    Text("No instructions listed")
+                        .font(AtlasTheme.Typography.body)
+                        .foregroundColor(AtlasTheme.Colors.secondaryText)
+                }
+                .padding(.vertical, AtlasTheme.Spacing.lg)
             }
         }
+        .padding(AtlasTheme.Spacing.md)
+        .background(AtlasTheme.Colors.glassBackground.opacity(0.3))
+        .cornerRadius(AtlasTheme.CornerRadius.medium)
     }
     
-    // MARK: - Tags Section
-    private func tagsSection(tags: NSSet) -> some View {
-        FrostedCard {
-            VStack(spacing: AtlasTheme.Spacing.md) {
-                SectionHeader(title: "Tags")
-                
-                LazyVGrid(columns: [
-                    GridItem(.flexible()),
-                    GridItem(.flexible()),
-                    GridItem(.flexible())
-                ], spacing: AtlasTheme.Spacing.sm) {
-                    ForEach(Array(tags), id: \.uuid) { tag in
-                        if let recipeTag = tag as? RecipeTag {
-                            Text(recipeTag.name ?? "")
+    // MARK: - Additional Info Section
+    private var additionalInfoSection: some View {
+        VStack(alignment: .leading, spacing: AtlasTheme.Spacing.md) {
+            if let tags = recipe.tags, tags.count > 0 {
+                VStack(alignment: .leading, spacing: AtlasTheme.Spacing.sm) {
+                    Text("Tags")
+                        .font(AtlasTheme.Typography.headline)
+                        .fontWeight(.semibold)
+                        .foregroundColor(AtlasTheme.Colors.text)
+                    
+                    LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 3), spacing: AtlasTheme.Spacing.sm) {
+                        ForEach(tags.allObjects.compactMap { $0 as? RecipeTag }, id: \.objectID) { tag in
+                            Text(tag.name ?? "")
                                 .font(AtlasTheme.Typography.caption)
-                                .padding(.horizontal, AtlasTheme.Spacing.md)
-                                .padding(.vertical, AtlasTheme.Spacing.sm)
+                                .padding(.horizontal, AtlasTheme.Spacing.sm)
+                                .padding(.vertical, AtlasTheme.Spacing.xs)
                                 .background(AtlasTheme.Colors.primary.opacity(0.1))
                                 .foregroundColor(AtlasTheme.Colors.primary)
                                 .cornerRadius(AtlasTheme.CornerRadius.small)
                         }
                     }
                 }
+                .padding(AtlasTheme.Spacing.md)
+                .background(AtlasTheme.Colors.glassBackground.opacity(0.3))
+                .cornerRadius(AtlasTheme.CornerRadius.medium)
             }
         }
     }
     
-    // MARK: - Computed Properties
-    private var difficultyText: String {
-        switch recipe.difficulty {
-        case 1: return "Easy"
-        case 2: return "Easy+"
-        case 3: return "Medium"
-        case 4: return "Hard"
-        case 5: return "Expert"
-        default: return "Unknown"
+    // MARK: - Helper Methods
+    private func formatTime(_ minutes: Int16) -> String {
+        if minutes < 60 {
+            return "\(minutes)m"
+        } else {
+            let hours = minutes / 60
+            let remainingMinutes = minutes % 60
+            return remainingMinutes > 0 ? "\(hours)h \(remainingMinutes)m" : "\(hours)h"
         }
+    }
+    
+    private func createEditRecipeView() -> AnyView? {
+        // Return nil for now - edit functionality can be added later
+        return nil
     }
     
     private var recipeShareText: String {
-        var text = "\(recipe.title ?? "Recipe")\n\n"
+        var text = recipe.title ?? "Recipe"
         
-        if let description = recipe.recipeDescription {
-            text += "\(description)\n\n"
+        if let description = recipe.recipeDescription, !description.isEmpty {
+            text += "\n\n\(description)"
         }
         
-        if let category = recipe.category {
-            text += "Category: \(category.name ?? "")\n"
-        }
-        
-        if recipe.prepTime > 0 {
-            text += "Prep Time: \(recipe.prepTime) minutes\n"
-        }
-        
-        if recipe.cookingTime > 0 {
-            text += "Cooking Time: \(recipe.cookingTime) minutes\n"
-        }
-        
-        text += "Servings: \(recipe.servings)\n\n"
-        
-        if let ingredients = recipe.ingredients {
-            text += "Ingredients:\n"
-            for ingredient in ingredients {
-                if let recipeIngredient = ingredient as? RecipeIngredient {
-                    let amount = recipeIngredient.amount
-                    let unit = recipeIngredient.unit ?? ""
-                    let name = recipeIngredient.name ?? ""
-                    text += "• \(amount) \(unit) \(name)\n"
+        if let ingredients = recipe.ingredients, ingredients.count > 0 {
+            text += "\n\nIngredients:\n"
+            for ingredient in ingredients.allObjects.compactMap({ $0 as? RecipeIngredient }) {
+                let name = ingredient.name ?? "Unknown"
+                let amount = ingredient.amount
+                let unit = ingredient.unit ?? ""
+                
+                if !unit.isEmpty {
+                    text += "• \(String(format: "%.1f", amount)) \(unit) \(name)\n"
+                } else {
+                    text += "• \(String(format: "%.1f", amount)) \(name)\n"
                 }
             }
-            text += "\n"
         }
         
-        if let steps = recipe.steps {
-            text += "Instructions:\n"
-            for (index, step) in Array(steps).enumerated() {
-                if let recipeStep = step as? RecipeStep {
-                    text += "\(index + 1). \(recipeStep.content ?? "")\n"
-                }
+        if let steps = recipe.steps, steps.count > 0 {
+            text += "\n\nInstructions:\n"
+            for (index, step) in steps.allObjects.compactMap({ $0 as? RecipeStep }).sorted(by: { $0.order < $1.order }).enumerated() {
+                text += "\(index + 1). \(step.content ?? "")\n"
             }
         }
         
@@ -444,7 +404,7 @@ struct InfoCard: View {
             
             Text(value)
                 .font(AtlasTheme.Typography.headline)
-                .fontWeight(.bold)
+                .fontWeight(.semibold)
                 .foregroundColor(AtlasTheme.Colors.text)
             
             Text(title)
@@ -452,86 +412,55 @@ struct InfoCard: View {
                 .foregroundColor(AtlasTheme.Colors.secondaryText)
         }
         .padding(AtlasTheme.Spacing.md)
-        .background(AtlasTheme.Colors.cardBackground.opacity(0.3))
+        .background(AtlasTheme.Colors.glassBackground.opacity(0.3))
         .cornerRadius(AtlasTheme.CornerRadius.small)
     }
 }
 
-// MARK: - Ingredient Detail Row Component
-struct IngredientDetailRow: View {
+// MARK: - Ingredient Row View
+struct IngredientRowView: View {
     let ingredient: RecipeIngredient
-    let onAddToShopping: () -> Void
-    
+
     var body: some View {
         HStack {
-            VStack(alignment: .leading, spacing: AtlasTheme.Spacing.xs) {
-                Text(ingredient.name ?? "Unknown")
-                    .font(AtlasTheme.Typography.body)
-                    .foregroundColor(AtlasTheme.Colors.text)
-                
-                if let unit = ingredient.unit, !unit.isEmpty {
-                    Text("\(ingredient.amount, specifier: "%.1f") \(unit)")
-                        .font(AtlasTheme.Typography.caption)
-                        .foregroundColor(AtlasTheme.Colors.secondaryText)
-                } else {
-                    Text("\(ingredient.amount, specifier: "%.1f")")
-                        .font(AtlasTheme.Typography.caption)
-                        .foregroundColor(AtlasTheme.Colors.secondaryText)
-                }
-                
-                if let notes = ingredient.notes, !notes.isEmpty {
-                    Text(notes)
-                        .font(AtlasTheme.Typography.caption2)
-                        .foregroundColor(AtlasTheme.Colors.secondaryText)
-                        .italic()
-                }
-            }
-            
+            Text(ingredient.name ?? "Unknown")
+                .font(AtlasTheme.Typography.body)
+                .foregroundColor(AtlasTheme.Colors.text)
+
             Spacer()
-            
-            Button(action: onAddToShopping) {
-                Image(systemName: "plus.circle")
-                    .font(.title3)
-                    .foregroundColor(AtlasTheme.Colors.primary)
+
+            if let unit = ingredient.unit, !unit.isEmpty {
+                Text(String(format: "%.1f %@", ingredient.amount, unit))
+                    .font(AtlasTheme.Typography.caption)
+                    .foregroundColor(AtlasTheme.Colors.secondaryText)
+            } else {
+                Text(String(format: "%.1f", ingredient.amount))
+                    .font(AtlasTheme.Typography.caption)
+                    .foregroundColor(AtlasTheme.Colors.secondaryText)
             }
         }
         .padding(.vertical, AtlasTheme.Spacing.sm)
     }
 }
 
-// MARK: - Step Detail Row Component
-struct StepDetailRow: View {
+// MARK: - Step Row View
+struct StepRowView: View {
     let step: RecipeStep
     
     var body: some View {
         HStack(alignment: .top, spacing: AtlasTheme.Spacing.md) {
-            Text("\((step.order) + 1)")
-                .font(AtlasTheme.Typography.caption)
-                .fontWeight(.bold)
+            Text("\(step.order + 1)")
+                .font(AtlasTheme.Typography.headline)
+                .fontWeight(.semibold)
                 .foregroundColor(AtlasTheme.Colors.primary)
-                .frame(width: 24, height: 24)
-                .background(AtlasTheme.Colors.primary.opacity(0.1))
-                .clipShape(Circle())
+                .frame(width: 30, alignment: .leading)
             
-            VStack(alignment: .leading, spacing: AtlasTheme.Spacing.xs) {
-                Text(step.content ?? "No content")
-                    .font(AtlasTheme.Typography.body)
-                    .foregroundColor(AtlasTheme.Colors.text)
-                
-                if step.timerMinutes > 0 {
-                    HStack(spacing: AtlasTheme.Spacing.xs) {
-                        Image(systemName: "timer")
-                            .font(.caption)
-                        Text("\(step.timerMinutes) minutes")
-                            .font(AtlasTheme.Typography.caption)
-                    }
-                    .foregroundColor(AtlasTheme.Colors.secondaryText)
-                    .padding(.horizontal, AtlasTheme.Spacing.sm)
-                    .padding(.vertical, AtlasTheme.Spacing.xs)
-                    .background(AtlasTheme.Colors.cardBackground.opacity(0.3))
-                    .cornerRadius(AtlasTheme.CornerRadius.small)
-                }
-            }
+            Text(step.content ?? "")
+                .font(AtlasTheme.Typography.body)
+                .foregroundColor(AtlasTheme.Colors.text)
+                .lineLimit(nil)
+            
+            Spacer()
         }
         .padding(.vertical, AtlasTheme.Spacing.sm)
     }
@@ -539,58 +468,62 @@ struct StepDetailRow: View {
 
 // MARK: - Add to Shopping List View
 struct AddToShoppingListView: View {
-    @Environment(\.presentationMode) var presentationMode
     let recipe: Recipe
-    @ObservedObject var shoppingListService: ShoppingListService
+    let shoppingListService: ShoppingListService
+    @Environment(\.presentationMode) var presentationMode
     
     var body: some View {
         NavigationView {
-            ZStack {
-                AtlasTheme.Colors.background
-                    .ignoresSafeArea()
+            VStack(spacing: AtlasTheme.Spacing.lg) {
+                Text("Add ingredients from '\(recipe.title ?? "Recipe")' to your shopping list?")
+                    .font(AtlasTheme.Typography.body)
+                    .foregroundColor(AtlasTheme.Colors.text)
+                    .multilineTextAlignment(.center)
+                    .padding()
                 
-                VStack(spacing: AtlasTheme.Spacing.lg) {
-                    Text("Add ingredients from '\(recipe.title ?? "Recipe")' to your shopping list?")
-                        .font(AtlasTheme.Typography.headline)
-                        .foregroundColor(AtlasTheme.Colors.text)
-                        .multilineTextAlignment(.center)
-                        .padding(.horizontal, AtlasTheme.Spacing.lg)
-                    
-                    if let ingredients = recipe.ingredients, !ingredients.isEmpty {
-                        ScrollView {
-                            LazyVStack(spacing: AtlasTheme.Spacing.sm) {
-                                ForEach(Array(ingredients), id: \.uuid) { ingredient in
-                                    if let recipeIngredient = ingredient as? RecipeIngredient {
-                                        HStack {
-                                            Text(recipeIngredient.name ?? "Unknown")
-                                                .font(AtlasTheme.Typography.body)
-                                                .foregroundColor(AtlasTheme.Colors.text)
-                                            
-                                            Spacer()
-                                            
-                                            if let unit = recipeIngredient.unit, !unit.isEmpty {
-                                                Text("\(recipeIngredient.amount, specifier: "%.1f") \(unit)")
-                                                    .font(AtlasTheme.Typography.caption)
-                                                    .foregroundColor(AtlasTheme.Colors.secondaryText)
-                                            } else {
-                                                Text("\(recipeIngredient.amount, specifier: "%.1f")")
-                                                    .font(AtlasTheme.Typography.caption)
-                                                    .foregroundColor(AtlasTheme.Colors.secondaryText)
-                                            }
-                                        }
-                                        .padding(AtlasTheme.Spacing.md)
-                                        .background(AtlasTheme.Colors.cardBackground.opacity(0.3))
-                                        .cornerRadius(AtlasTheme.CornerRadius.small)
+                if let ingredients = recipe.ingredients, ingredients.count > 0 {
+                    ScrollView {
+                        VStack(spacing: AtlasTheme.Spacing.sm) {
+                            ForEach(ingredients.allObjects.compactMap { $0 as? RecipeIngredient }, id: \.uuid) { ingredient in
+                                HStack {
+                                    Text(ingredient.name ?? "Unknown")
+                                        .font(AtlasTheme.Typography.body)
+                                        .foregroundColor(AtlasTheme.Colors.text)
+                                    
+                                    Spacer()
+                                    
+                                    if let unit = ingredient.unit, !unit.isEmpty {
+                                        Text(String(format: "%.1f %@", ingredient.amount, unit))
+                                            .font(AtlasTheme.Typography.caption)
+                                            .foregroundColor(AtlasTheme.Colors.secondaryText)
+                                    } else {
+                                        Text(String(format: "%.1f", ingredient.amount))
+                                            .font(AtlasTheme.Typography.caption)
+                                            .foregroundColor(AtlasTheme.Colors.secondaryText)
                                     }
                                 }
+                                .padding(.vertical, AtlasTheme.Spacing.xs)
                             }
-                            .padding(.horizontal, AtlasTheme.Spacing.lg)
                         }
                     }
-                    
-                    Spacer()
+                    .padding()
                 }
-                .padding(.top, AtlasTheme.Spacing.lg)
+                
+                Spacer()
+                
+                Button(action: {
+                    _ = shoppingListService.addIngredientsFromRecipe(recipe)
+                    presentationMode.wrappedValue.dismiss()
+                }) {
+                    Text("Add All Ingredients")
+                        .font(AtlasTheme.Typography.headline)
+                        .foregroundColor(.white)
+                        .frame(maxWidth: .infinity)
+                        .padding()
+                        .background(AtlasTheme.Colors.primary)
+                        .cornerRadius(AtlasTheme.CornerRadius.medium)
+                }
+                .padding()
             }
             .navigationTitle("Add to Shopping List")
             .navigationBarTitleDisplayMode(.inline)
@@ -600,15 +533,6 @@ struct AddToShoppingListView: View {
                     Button("Cancel") {
                         presentationMode.wrappedValue.dismiss()
                     }
-                    .foregroundColor(AtlasTheme.Colors.primary)
-                }
-                
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Add All") {
-                        shoppingListService.addIngredientsFromRecipe(recipe)
-                        presentationMode.wrappedValue.dismiss()
-                    }
-                    .foregroundColor(AtlasTheme.Colors.primary)
                 }
             }
         }
@@ -624,6 +548,34 @@ struct ShareSheet: UIViewControllerRepresentable {
     }
     
     func updateUIViewController(_ uiViewController: UIActivityViewController, context: Context) {}
+}
+
+// MARK: - Recipe Photo Capture View
+struct RecipePhotoCaptureView: View {
+    @Binding var selectedImage: UIImage?
+    @Environment(\.presentationMode) var presentationMode
+    
+    var body: some View {
+        NavigationView {
+            VStack {
+                Text("Photo capture functionality")
+                    .font(AtlasTheme.Typography.body)
+                    .foregroundColor(AtlasTheme.Colors.text)
+                
+                Spacer()
+            }
+            .navigationTitle("Add Photo")
+            .navigationBarTitleDisplayMode(.inline)
+            .navigationBarBackButtonHidden(true)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button("Cancel") {
+                        presentationMode.wrappedValue.dismiss()
+                    }
+                }
+            }
+        }
+    }
 }
 
 #Preview {

@@ -175,10 +175,12 @@ class TMDBService: ObservableObject {
         
         print("🌐 Making request to: \(url)")
         
-        URLSession.shared.dataTask(with: url) { [weak self] data, response, error in
+        URLSession.shared.dataTask(with: url) { data, response, error in
             guard let data = data, error == nil else {
                 print("❌ Error searching movies: \(error?.localizedDescription ?? "Unknown error")")
-                completion([])
+                DispatchQueue.main.async {
+                    completion([])
+                }
                 return
             }
             
@@ -187,10 +189,14 @@ class TMDBService: ObservableObject {
             do {
                 let response = try JSONDecoder().decode(TMDBResponse.self, from: data)
                 print("✅ Found \(response.results.count) movie results")
-                completion(response.results)
+                DispatchQueue.main.async {
+                    completion(response.results)
+                }
             } catch {
                 print("❌ Error decoding movie search results: \(error)")
-                completion([])
+                DispatchQueue.main.async {
+                    completion([])
+                }
             }
         }.resume()
     }
@@ -207,10 +213,12 @@ class TMDBService: ObservableObject {
         
         print("🌐 Making request to: \(url)")
         
-        URLSession.shared.dataTask(with: url) { [weak self] data, response, error in
+        URLSession.shared.dataTask(with: url) { data, response, error in
             guard let data = data, error == nil else {
                 print("❌ Error searching TV shows: \(error?.localizedDescription ?? "Unknown error")")
-                completion([])
+                DispatchQueue.main.async {
+                    completion([])
+                }
                 return
             }
             

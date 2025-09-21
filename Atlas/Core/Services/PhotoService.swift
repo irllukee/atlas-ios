@@ -53,7 +53,7 @@ class PhotoService: ObservableObject {
     // MARK: - Recipe Image Management
     
     func addImageToRecipe(_ image: UIImage, recipe: Recipe, isCoverImage: Bool = false, order: Int16 = 0) -> RecipeImage? {
-        guard let filename = saveImage(image, for: recipe, isCoverImage: isCoverImage) else { return nil }
+        guard saveImage(image, for: recipe, isCoverImage: isCoverImage) != nil else { return nil }
         
         // If this is a cover image, remove cover status from other images
         if isCoverImage {
@@ -81,7 +81,7 @@ class PhotoService: ObservableObject {
     
     func addImageToStep(_ image: UIImage, step: RecipeStep, order: Int16 = 0) -> RecipeImage? {
         guard let recipe = step.recipe else { return nil }
-        guard let filename = saveImage(image, for: recipe) else { return nil }
+        guard saveImage(image, for: recipe) != nil else { return nil }
         
         let recipeImage = RecipeImage(context: step.managedObjectContext!)
         recipeImage.uuid = UUID()

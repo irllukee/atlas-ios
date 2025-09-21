@@ -2,11 +2,11 @@ import Foundation
 import CoreData
 import SwiftUI
 
+@MainActor
 class ShoppingListService: ObservableObject {
     private let viewContext: NSManagedObjectContext
     private let dataManager: DataManager
     
-    @MainActor
     init(dataManager: DataManager) {
         self.dataManager = dataManager
         self.viewContext = dataManager.coreDataStack.viewContext

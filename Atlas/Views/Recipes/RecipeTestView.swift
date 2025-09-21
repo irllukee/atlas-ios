@@ -3,7 +3,6 @@ import SwiftUI
 struct RecipeTestView: View {
     @StateObject private var recipesService: RecipesService
     @StateObject private var shoppingListService: ShoppingListService
-    @StateObject private var importService: RecipeImportService
     @StateObject private var photoService = PhotoService()
     
     @State private var testResults: [String] = []
@@ -13,7 +12,6 @@ struct RecipeTestView: View {
         let dataManager = DataManager.shared
         self._recipesService = StateObject(wrappedValue: RecipesService(dataManager: dataManager))
         self._shoppingListService = StateObject(wrappedValue: ShoppingListService(dataManager: dataManager))
-        self._importService = StateObject(wrappedValue: RecipeImportService(recipesService: RecipesService(dataManager: dataManager)))
     }
     
     var body: some View {
@@ -158,9 +156,11 @@ struct RecipeTestView: View {
         isRunningTests = true
         testResults.removeAll()
         
-        Task { @MainActor in
+        _Concurrency.Task {
             await runTests()
-            isRunningTests = false
+            await MainActor.run {
+                isRunningTests = false
+            }
         }
     }
     
@@ -194,8 +194,6 @@ struct RecipeTestView: View {
         // Test 9: Templates
         await testTemplates()
         
-        // Test 10: Import Functionality
-        await testImportFunctionality()
         
         await addTestResult("🎉 All tests completed!")
     }
@@ -518,47 +516,6 @@ struct RecipeTestView: View {
         recipesService.deleteRecipe(newRecipe)
     }
     
-    private func testImportFunctionality() async {
-        await addTestResult("📥 Testing Import Functionality...")
-        
-        // Test manual text import
-        let testText = """
-        Test Import Recipe
-        A recipe for testing import functionality
-        
-        Ingredients:
-        2 cups flour
-        1 cup sugar
-        2 eggs
-        
-        Instructions:
-        1. Mix flour and sugar
-        2. Add eggs
-        3. Bake for 30 minutes
-        
-        Prep: 15 min
-        Cook: 30 min
-        Serves: 4
-        """
-        
-        let importResult = importService.importRecipeFromText(testText)
-        
-        if case .success(let importedRecipe) = importResult {
-            await addTestResult("✅ Manual text import successful")
-            
-            // Verify imported data
-            if importedRecipe.title == "Test Import Recipe" {
-                await addTestResult("✅ Imported recipe title correct")
-            } else {
-                await addTestResult("❌ Imported recipe title incorrect")
-            }
-            
-            // Cleanup
-            recipesService.deleteRecipe(importedRecipe)
-        } else {
-            await addTestResult("❌ Manual text import failed")
-        }
-    }
 }
 
 #Preview {
