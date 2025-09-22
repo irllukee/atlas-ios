@@ -13,9 +13,9 @@ struct SwipeMenuView: View {
     // Navigation items
     private let navigationItems: [(AppView, String, String)] = [
         (.dashboard, "house.fill", "Dashboard"),
-        (.notes, "note.text", "Notes"),
         (.tasks, "checkmark.circle", "Tasks"),
         (.journal, "book.fill", "Journal"),
+        (.notes, "doc.text", "Notes"),
         (.calendar, "calendar", "Calendar"),
         (.analytics, "chart.bar.fill", "Analytics"),
         (.watchlist, "tv", "Watchlist"),

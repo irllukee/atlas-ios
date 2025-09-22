@@ -1,11 +1,11 @@
 import Foundation
 
 // MARK: - TMDB API Models
-struct TMDBResponse: Codable {
+struct TMDBResponse: Codable, Sendable {
     let results: [TMDBItem]
 }
 
-struct TMDBItem: Codable {
+struct TMDBItem: Codable, Sendable {
     let id: Int
     let title: String?
     let name: String?
@@ -49,16 +49,18 @@ struct TMDBItem: Codable {
     }
 }
 
-struct TMDBGenre: Codable {
+struct TMDBGenre: Codable, Sendable {
     let id: Int
     let name: String
 }
 
-struct TMDBGenresResponse: Codable {
+struct TMDBGenresResponse: Codable, Sendable {
     let genres: [TMDBGenre]
 }
 
 // MARK: - TMDB Service
+typealias TMDBItemsHandler = @Sendable ([TMDBItem]) -> Void
+
 @MainActor
 class TMDBService: ObservableObject {
     private let apiKey = "ef7b7742bbbbbd9313975f57b4a00d49"
@@ -163,7 +165,7 @@ class TMDBService: ObservableObject {
     }
     
     // MARK: - Completion Handler Versions
-    func searchMovies(query: String, completion: @escaping ([TMDBItem]) -> Void) {
+    func searchMovies(query: String, completion: @escaping TMDBItemsHandler) {
         print("🔍 Searching for movies with query: '\(query)'")
         
         guard let encodedQuery = query.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed),
@@ -201,7 +203,7 @@ class TMDBService: ObservableObject {
         }.resume()
     }
     
-    func searchTVShows(query: String, completion: @escaping ([TMDBItem]) -> Void) {
+    func searchTVShows(query: String, completion: @escaping TMDBItemsHandler) {
         print("🔍 Searching for TV shows with query: '\(query)'")
         
         guard let encodedQuery = query.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed),
@@ -227,15 +229,19 @@ class TMDBService: ObservableObject {
             do {
                 let response = try JSONDecoder().decode(TMDBResponse.self, from: data)
                 print("✅ Found \(response.results.count) TV show results")
-                completion(response.results)
+                DispatchQueue.main.async {
+                    completion(response.results)
+                }
             } catch {
                 print("❌ Error decoding TV search results: \(error)")
-                completion([])
+                DispatchQueue.main.async {
+                    completion([])
+                }
             }
         }.resume()
     }
     
-    func searchAll(query: String, completion: @escaping ([TMDBItem]) -> Void) {
+    func searchAll(query: String, completion: @escaping TMDBItemsHandler) {
         print("🔍 Searching for all content (movies + TV shows) with query: '\(query)'")
         
         guard let encodedQuery = query.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed),
@@ -250,26 +256,34 @@ class TMDBService: ObservableObject {
         URLSession.shared.dataTask(with: url) { data, response, error in
             if let error = error {
                 print("❌ Error searching all content: \(error.localizedDescription)")
-                completion([])
+                DispatchQueue.main.async {
+                    completion([])
+                }
                 return
             }
             
             guard let data = data else {
                 print("❌ No data received for multi search")
-                completion([])
+                DispatchQueue.main.async {
+                    completion([])
+                }
                 return
             }
             
             do {
                 let response = try JSONDecoder().decode(TMDBResponse.self, from: data)
                 print("✅ Successfully decoded \(response.results.count) total results")
-                completion(response.results)
+                DispatchQueue.main.async {
+                    completion(response.results)
+                }
             } catch {
                 print("❌ Error decoding multi search results: \(error)")
                 if let jsonString = String(data: data, encoding: .utf8) {
                     print("📄 Raw JSON response: \(jsonString)")
                 }
-                completion([])
+                DispatchQueue.main.async {
+                    completion([])
+                }
             }
         }.resume()
     }

@@ -2,9 +2,9 @@ import Foundation
 
 enum AppView: CaseIterable {
     case dashboard
-    case notes
     case tasks
     case journal
+    case notes
     case calendar
     case analytics
     case watchlist

@@ -1,0 +1,415 @@
+import SwiftUI
+
+// MARK: - Notes Detail View
+struct NotesDetailView: View {
+    let note: Note?
+    
+    @StateObject private var notesService = NotesService.shared
+    @Environment(\.dismiss) private var dismiss
+    
+    @State private var title: String = ""
+    @State private var content: String = ""
+    @State private var isFavorite: Bool = false
+    @State private var selectedFolder: NoteFolder?
+    @State private var selectedTags: Set<NoteTag> = []
+    @State private var showingFolderPicker = false
+    @State private var showingTagPicker = false
+    @State private var showingDeleteConfirmation = false
+    @State private var hasUnsavedChanges = false
+    
+    // Auto-save
+    @State private var autoSaveTimer: Timer?
+    private let autoSaveInterval: TimeInterval = 2.0
+    
+    var body: some View {
+        NavigationView {
+            VStack(spacing: 0) {
+                // Unified Rich Text Editor (Aztec + Fallback)
+                UnifiedRichTextEditor(
+                    content: $content,
+                    title: $title,
+                    placeholder: ""
+                )
+                .onChange(of: content) { _, _ in
+                    hasUnsavedChanges = true
+                    scheduleAutoSave()
+                }
+                .onChange(of: title) { _, _ in
+                    hasUnsavedChanges = true
+                    scheduleAutoSave()
+                }
+                
+                // Metadata Bar
+                metadataBar
+            }
+            .background(AtlasTheme.Colors.background)
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button("Cancel") {
+                        if hasUnsavedChanges {
+                            // Show save confirmation
+                            saveAndDismiss()
+                        } else {
+                            dismiss()
+                        }
+                    }
+                    .foregroundColor(AtlasTheme.Colors.text)
+                }
+                
+                ToolbarItem(placement: .principal) {
+                    Text(note == nil ? "New Note" : "Edit Note")
+                        .font(AtlasTheme.Typography.headline)
+                        .foregroundColor(AtlasTheme.Colors.text)
+                }
+                
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    HStack(spacing: AtlasTheme.Spacing.sm) {
+                        // Favorite Button
+                        Button(action: toggleFavorite) {
+                            Image(systemName: isFavorite ? "star.fill" : "star")
+                                .font(.system(size: 16, weight: .medium))
+                                .foregroundColor(isFavorite ? AtlasTheme.Colors.warning : AtlasTheme.Colors.text)
+                        }
+                        
+                        // More Options
+                        Menu {
+                            Button("Folder") {
+                                showingFolderPicker = true
+                            }
+                            
+                            Button("Tags") {
+                                showingTagPicker = true
+                            }
+                            
+                            if note != nil {
+                                Divider()
+                                
+                                Button("Delete Note", role: .destructive) {
+                                    showingDeleteConfirmation = true
+                                }
+                            }
+                        } label: {
+                            Image(systemName: "ellipsis.circle")
+                                .font(.system(size: 16, weight: .medium))
+                                .foregroundColor(AtlasTheme.Colors.text)
+                        }
+                        
+                        // Save Button
+                        Button("Save") {
+                            saveAndDismiss()
+                        }
+                        .foregroundColor(AtlasTheme.Colors.primary)
+                        .fontWeight(.semibold)
+                    }
+                }
+            }
+        }
+        .navigationViewStyle(StackNavigationViewStyle())
+        .onAppear {
+            print("🔧 DEBUG: NotesDetailView appeared - note: \(note?.title ?? "nil (new note)")")
+            setupNote()
+            startAutoSave()
+        }
+        .onDisappear {
+            stopAutoSave()
+        }
+        .sheet(isPresented: $showingFolderPicker) {
+            FolderPickerView(selectedFolder: $selectedFolder)
+        }
+        .sheet(isPresented: $showingTagPicker) {
+            NotesTagPickerView(selectedTags: $selectedTags)
+        }
+        .alert("Delete Note", isPresented: $showingDeleteConfirmation) {
+            Button("Cancel", role: .cancel) { }
+            Button("Delete", role: .destructive) {
+                deleteNote()
+            }
+        } message: {
+            Text("Are you sure you want to delete this note? This action cannot be undone.")
+        }
+    }
+    
+    // MARK: - Metadata Bar
+    private var metadataBar: some View {
+        VStack(spacing: 0) {
+            Divider()
+                .background(AtlasTheme.Colors.glassBorder)
+            
+            HStack(spacing: AtlasTheme.Spacing.md) {
+                // Folder
+                Button(action: { showingFolderPicker = true }) {
+                    HStack(spacing: AtlasTheme.Spacing.xs) {
+                        Image(systemName: "folder")
+                            .font(.system(size: 14))
+                        Text(selectedFolder?.name ?? "No Folder")
+                            .font(AtlasTheme.Typography.caption)
+                    }
+                    .foregroundColor(AtlasTheme.Colors.text)
+                    .padding(.horizontal, AtlasTheme.Spacing.sm)
+                    .padding(.vertical, AtlasTheme.Spacing.xs)
+                    .background(
+                        RoundedRectangle(cornerRadius: AtlasTheme.CornerRadius.small)
+                            .fill(AtlasTheme.Colors.glassBackground)
+                    )
+                }
+                
+                // Tags
+                Button(action: { showingTagPicker = true }) {
+                    HStack(spacing: AtlasTheme.Spacing.xs) {
+                        Image(systemName: "tag")
+                            .font(.system(size: 14))
+                        Text("\(selectedTags.count) tags")
+                            .font(AtlasTheme.Typography.caption)
+                    }
+                    .foregroundColor(AtlasTheme.Colors.text)
+                    .padding(.horizontal, AtlasTheme.Spacing.sm)
+                    .padding(.vertical, AtlasTheme.Spacing.xs)
+                    .background(
+                        RoundedRectangle(cornerRadius: AtlasTheme.CornerRadius.small)
+                            .fill(AtlasTheme.Colors.glassBackground)
+                    )
+                }
+                
+                Spacer()
+                
+                // Auto-save indicator
+                if hasUnsavedChanges {
+                    HStack(spacing: 4) {
+                        Circle()
+                            .fill(AtlasTheme.Colors.warning)
+                            .frame(width: 6, height: 6)
+                        Text("Unsaved")
+                            .font(AtlasTheme.Typography.caption2)
+                            .foregroundColor(AtlasTheme.Colors.warning)
+                    }
+                } else {
+                    HStack(spacing: 4) {
+                        Image(systemName: "checkmark.circle.fill")
+                            .font(.system(size: 12))
+                            .foregroundColor(AtlasTheme.Colors.success)
+                        Text("Saved")
+                            .font(AtlasTheme.Typography.caption2)
+                            .foregroundColor(AtlasTheme.Colors.success)
+                    }
+                }
+            }
+            .padding(.horizontal, AtlasTheme.Spacing.md)
+            .padding(.vertical, AtlasTheme.Spacing.sm)
+            .background(AtlasTheme.Colors.glassBackgroundLight)
+        }
+    }
+    
+    // MARK: - Setup
+    private func setupNote() {
+        if let note = note {
+            title = note.title ?? ""
+            content = note.content ?? ""
+            isFavorite = note.isFavorite
+            selectedFolder = note.folder
+            selectedTags = Set(note.tags?.allObjects as? [NoteTag] ?? [])
+        } else {
+            title = ""
+            content = ""
+            isFavorite = false
+            selectedFolder = nil
+            selectedTags = []
+        }
+    }
+    
+    // MARK: - Actions
+    private func toggleFavorite() {
+        isFavorite.toggle()
+        hasUnsavedChanges = true
+        AtlasTheme.Haptics.light()
+    }
+    
+    private func saveAndDismiss() {
+        saveNote()
+        dismiss()
+    }
+    
+    private func deleteNote() {
+        if let note = note {
+            notesService.deleteNote(note)
+            AtlasTheme.Haptics.success()
+            dismiss()
+        }
+    }
+    
+    // MARK: - Auto-save
+    private func startAutoSave() {
+        autoSaveTimer = Timer.scheduledTimer(withTimeInterval: autoSaveInterval, repeats: true) { _ in
+            DispatchQueue.main.async {
+                if hasUnsavedChanges {
+                    saveNote()
+                }
+            }
+        }
+    }
+    
+    private func stopAutoSave() {
+        autoSaveTimer?.invalidate()
+        autoSaveTimer = nil
+    }
+    
+    private func scheduleAutoSave() {
+        // Debounce auto-save
+        autoSaveTimer?.invalidate()
+        autoSaveTimer = Timer.scheduledTimer(withTimeInterval: autoSaveInterval, repeats: false) { _ in
+            DispatchQueue.main.async {
+                saveNote()
+            }
+        }
+    }
+    
+    private func saveNote() {
+        if let note = note {
+            // Update existing note
+            notesService.updateNote(note, title: title, content: content)
+            note.isFavorite = isFavorite
+            note.folder = selectedFolder
+            
+            // Update tags
+            note.tags = NSSet(set: selectedTags)
+        } else {
+            // Create new note
+            let newNote = notesService.createNote(title: title, content: content, folder: selectedFolder)
+            newNote.isFavorite = isFavorite
+            newNote.tags = NSSet(set: selectedTags)
+        }
+        
+        hasUnsavedChanges = false
+        notesService.saveContext()
+    }
+}
+
+// MARK: - Folder Picker View
+struct FolderPickerView: View {
+    @Binding var selectedFolder: NoteFolder?
+    @StateObject private var notesService = NotesService.shared
+    @Environment(\.dismiss) private var dismiss
+    
+    var body: some View {
+        NavigationView {
+            List {
+                Section {
+                    Button("No Folder") {
+                        selectedFolder = nil
+                        dismiss()
+                    }
+                    .foregroundColor(AtlasTheme.Colors.text)
+                }
+                
+                Section("Folders") {
+                    ForEach(notesService.folders, id: \.uuid) { folder in
+                        Button(action: {
+                            selectedFolder = folder
+                            dismiss()
+                        }) {
+                            HStack {
+                                Circle()
+                                    .fill(Color(hex: folder.color ?? "#007AFF") ?? AtlasTheme.Colors.primary)
+                                    .frame(width: 12, height: 12)
+                                
+                                Text(folder.name ?? "Unnamed Folder")
+                                    .foregroundColor(AtlasTheme.Colors.text)
+                                
+                                Spacer()
+                                
+                                if selectedFolder?.uuid == folder.uuid {
+                                    Image(systemName: "checkmark")
+                                        .foregroundColor(AtlasTheme.Colors.primary)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            .navigationTitle("Select Folder")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("Done") {
+                        dismiss()
+                    }
+                }
+            }
+        }
+    }
+}
+
+// MARK: - Notes Tag Picker View
+struct NotesTagPickerView: View {
+    @Binding var selectedTags: Set<NoteTag>
+    @StateObject private var notesService = NotesService.shared
+    @Environment(\.dismiss) private var dismiss
+    
+    var body: some View {
+        NavigationView {
+            List {
+                if notesService.tags.isEmpty {
+                    VStack(spacing: AtlasTheme.Spacing.md) {
+                        Image(systemName: "tag")
+                            .font(.system(size: 48))
+                            .foregroundColor(AtlasTheme.Colors.tertiaryText)
+                        
+                        Text("No tags yet")
+                            .font(AtlasTheme.Typography.title3)
+                            .foregroundColor(AtlasTheme.Colors.text)
+                        
+                        Text("Create tags to organize your notes")
+                            .font(AtlasTheme.Typography.body)
+                            .foregroundColor(AtlasTheme.Colors.tertiaryText)
+                            .multilineTextAlignment(.center)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(AtlasTheme.Spacing.xl)
+                } else {
+                    ForEach(notesService.tags, id: \.uuid) { tag in
+                        Button(action: {
+                            if selectedTags.contains(tag) {
+                                selectedTags.remove(tag)
+                            } else {
+                                selectedTags.insert(tag)
+                            }
+                        }) {
+                            HStack {
+                                Circle()
+                                    .fill(Color(hex: tag.color ?? "#FF9500") ?? AtlasTheme.Colors.secondary)
+                                    .frame(width: 12, height: 12)
+                                
+                                Text(tag.name ?? "Unnamed Tag")
+                                    .foregroundColor(AtlasTheme.Colors.text)
+                                
+                                Spacer()
+                                
+                                if selectedTags.contains(tag) {
+                                    Image(systemName: "checkmark")
+                                        .foregroundColor(AtlasTheme.Colors.primary)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            .navigationTitle("Select Tags")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("Done") {
+                        dismiss()
+                    }
+                }
+            }
+        }
+        .onAppear {
+            notesService.loadData()
+        }
+    }
+}
+
+// MARK: - Preview
+#Preview {
+    NotesDetailView(note: nil)
+}

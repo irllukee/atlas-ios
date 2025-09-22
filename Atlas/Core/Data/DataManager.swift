@@ -11,7 +11,6 @@ final class DataManager: ObservableObject {
     let coreDataStack: CoreDataStack
     
     // MARK: - Repositories
-    let noteRepository: NoteRepository
     let taskRepository: TaskRepository
     
     // MARK: - Published Properties for SwiftUI
@@ -22,7 +21,6 @@ final class DataManager: ObservableObject {
     // MARK: - Initialization
     private init() {
         self.coreDataStack = CoreDataStack.shared
-        self.noteRepository = NoteRepository(context: coreDataStack.viewContext)
         self.taskRepository = TaskRepository(context: coreDataStack.viewContext)
         
         // Validate data integrity on startup
@@ -64,10 +62,13 @@ final class DataManager: ObservableObject {
     
     // MARK: - Statistics
     func getAppStatistics() -> AppStatistics {
+        let notesService = NotesService.shared
+        let notesStats = notesService.getNotesStatistics()
+        
         return AppStatistics(
-            totalNotes: noteRepository.getTotalCount(),
-            encryptedNotes: noteRepository.getEncryptedCount(),
-            notesToday: noteRepository.getNotesCreatedToday().count,
+            totalNotes: notesStats.totalNotes,
+            encryptedNotes: 0, // TODO: Implement encrypted notes count
+            notesToday: notesStats.notesCreatedToday,
             totalTasks: taskRepository.getTotalCount(),
             completedTasks: taskRepository.getCompletedCount(),
             pendingTasks: taskRepository.getPendingCount(),
@@ -94,6 +95,20 @@ final class DataManager: ObservableObject {
     
     func logDatabaseStats() {
         coreDataStack.logDatabaseStats()
+    }
+    
+    // MARK: - Performance Monitoring
+    func logPerformanceMetrics() {
+        let stats = getAppStatistics()
+        let performanceMetrics = PerformanceService.shared.getPerformanceMetrics()
+        
+        print("📊 Atlas Performance Metrics:")
+        print("  📝 Notes: \(stats.totalNotes) total, \(stats.notesToday) today")
+        print("  ✅ Tasks: \(stats.totalTasks) total, \(stats.completedTasks) completed")
+        print("  💾 Memory: \(String(format: "%.1f", performanceMetrics.memoryUsageMB))MB")
+        print("  🖼️ Image Cache: \(performanceMetrics.imageCacheSize) items (\(String(format: "%.1f", performanceMetrics.imageCacheMemoryUsageMB))MB)")
+        print("  📄 Text Cache: \(performanceMetrics.textCacheSize) items")
+        print("  🔍 Preview Cache: \(performanceMetrics.notePreviewCacheSize) items")
     }
 }
 

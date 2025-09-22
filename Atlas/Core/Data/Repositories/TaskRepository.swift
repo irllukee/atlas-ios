@@ -102,7 +102,7 @@ class TaskRepository: BaseRepository<Task>, @unchecked Sendable {
         let predicate = NSCompoundPredicate(orPredicateWithSubpredicates: [titlePredicate, notesPredicate])
         
         let sortDescriptors = [NSSortDescriptor(keyPath: \Task.priority, ascending: false), NSSortDescriptor(keyPath: \Task.updatedAt, ascending: false)]
-        return fetch(predicate: predicate, sortDescriptors: sortDescriptors)
+        return fetch(predicate: predicate, sortDescriptors: sortDescriptors, limit: 30) // Limit search results
     }
     
     // MARK: - Statistics

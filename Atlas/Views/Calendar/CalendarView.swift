@@ -27,6 +27,21 @@ struct CalendarView: View {
                         calendarContentView
                     }
                 }
+                .onAppear {
+                    // Request permission when view appears if not determined
+                    if viewModel.permissionStatus == .notDetermined {
+                        _Concurrency.Task {
+                            await viewModel.requestCalendarAccess()
+                        }
+                    }
+                }
+                .alert("Calendar Error", isPresented: .constant(viewModel.errorMessage != nil)) {
+                    Button("OK") {
+                        viewModel.errorMessage = nil
+                    }
+                } message: {
+                    Text(viewModel.errorMessage ?? "")
+                }
             }
             .navigationTitle("Calendar")
             .toolbar {

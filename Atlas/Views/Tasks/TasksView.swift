@@ -1,6 +1,10 @@
 import SwiftUI
 import CoreData
 
+// Use the Core Data Task entity directly
+// Note: Task is the Core Data entity name, not Swift's Task type
+// TaskEntity typealias is defined in TasksService.swift
+
 struct TasksView: View {
     @Environment(\.managedObjectContext) private var viewContext
     @ObservedObject var dataManager: DataManager
@@ -18,7 +22,7 @@ struct TasksView: View {
 }
 
 struct TaskRow<ViewModel: TaskViewModelProtocol>: View {
-    @ObservedObject var task: Task
+    @ObservedObject var task: TaskEntity
     @ObservedObject var viewModel: ViewModel
     
     var body: some View {

@@ -1,6 +1,10 @@
 import Foundation
 import CoreData
+// Import Combine after we define our Task alias to avoid conflicts
 import Combine
+
+// Create an alias for the Core Data Task entity before Swift's Task type becomes available
+typealias TaskEntity = Task
 
 enum TaskPriority: Int16, CaseIterable {
     case low = 1
@@ -51,8 +55,8 @@ class TasksService: ObservableObject {
     private let taskRepository: TaskRepository
     private let dataManager: DataManager
     
-    @Published var tasks: [Task] = []
-    @Published var filteredTasks: [Task] = []
+    @Published var tasks: [TaskEntity] = []
+    @Published var filteredTasks: [TaskEntity] = []
     @Published var searchText: String = ""
     @Published var selectedFilter: TaskFilter = .all
     @Published var sortOrder: TaskSortOrder = .dueDateAscending
@@ -64,6 +68,7 @@ class TasksService: ObservableObject {
     // MARK: - Initialization
     init(dataManager: DataManager) {
         self.dataManager = dataManager
+        // Initialize repository with context access on main actor
         self.taskRepository = TaskRepository(context: dataManager.coreDataStack.viewContext)
         
         setupBindings()
@@ -87,7 +92,7 @@ class TasksService: ObservableObject {
     
     // MARK: - CRUD Operations
     
-    func createTask(title: String, notes: String = "", priority: TaskPriority = .medium, dueDate: Date? = nil, isRecurring: Bool = false, recurrencePattern: String? = nil) -> Task? {
+    func createTask(title: String, notes: String = "", priority: TaskPriority = .medium, dueDate: Date? = nil, isRecurring: Bool = false, recurrencePattern: String? = nil) -> TaskEntity? {
         let task = taskRepository.createTask(
             title: title,
             notes: notes,
@@ -104,7 +109,7 @@ class TasksService: ObservableObject {
         return task
     }
     
-    func createTaskFromTemplate(_ template: TaskTemplate) -> Task? {
+    func createTaskFromTemplate(_ template: TaskTemplate) -> TaskEntity? {
         let task = createTask(
             title: template.title,
             notes: template.notes,
@@ -116,7 +121,7 @@ class TasksService: ObservableObject {
         return task
     }
     
-    func updateTask(_ task: Task, title: String? = nil, notes: String? = nil, priority: TaskPriority? = nil, dueDate: Date? = nil) -> Bool {
+    func updateTask(_ task: TaskEntity, title: String? = nil, notes: String? = nil, priority: TaskPriority? = nil, dueDate: Date? = nil) -> Bool {
         let success = taskRepository.updateTask(
             task,
             title: title,
@@ -132,7 +137,7 @@ class TasksService: ObservableObject {
         return success
     }
     
-    func deleteTask(_ task: Task) -> Bool {
+    func deleteTask(_ task: TaskEntity) -> Bool {
         let success = taskRepository.delete(task)
         if success {
             loadTasks()
@@ -140,7 +145,7 @@ class TasksService: ObservableObject {
         return success
     }
     
-    func toggleTaskCompletion(_ task: Task) -> Bool {
+    func toggleTaskCompletion(_ task: TaskEntity) -> Bool {
         let success = taskRepository.toggleCompletion(task)
         if success {
             loadTasks()
@@ -148,7 +153,7 @@ class TasksService: ObservableObject {
         return success
     }
     
-    func completeTask(_ task: Task) -> Bool {
+    func completeTask(_ task: TaskEntity) -> Bool {
         let success = taskRepository.completeTask(task)
         if success {
             loadTasks()
@@ -156,7 +161,7 @@ class TasksService: ObservableObject {
         return success
     }
     
-    func uncompleteTask(_ task: Task) -> Bool {
+    func uncompleteTask(_ task: TaskEntity) -> Bool {
         let success = taskRepository.uncompleteTask(task)
         if success {
             loadTasks()
@@ -238,16 +243,10 @@ class TasksService: ObservableObject {
     // MARK: - Private Helpers
     
     private func loadTasks() {
-        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
-            guard let self = self else { return }
-            
-            let fetchedTasks = self.taskRepository.fetchAll()
-            
-            DispatchQueue.main.async {
-                self.tasks = fetchedTasks
-                self.filterTasks()
-            }
-        }
+        // Ensure we're on the main thread since this service is @MainActor
+        let fetchedTasks = taskRepository.fetchAll()
+        tasks = fetchedTasks
+        filterTasks()
     }
 }
 

@@ -207,7 +207,6 @@ struct WatchlistView: View {
     // MARK: - Statistics Section
     private var statisticsSection: some View {
         let stats = watchlistService.getStatistics()
-        let averageRating = watchlistService.getAverageRating()
         
         return LazyVGrid(columns: [
             GridItem(.flexible()),

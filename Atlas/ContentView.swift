@@ -26,15 +26,9 @@ struct ContentView: View {
     
     // MARK: - Initialization
     init() {
-        // Initialize dashboard data service lazily to avoid blocking app startup
-        // This will be created on first access to improve startup performance
-        self._dashboardDataService = StateObject(wrappedValue: DashboardDataService(
-            dataManager: DataManager.shared,
-            calendarService: CalendarService(),
-            notesService: NotesService(dataManager: DataManager.shared, encryptionService: EncryptionService.shared),
-            tasksService: TasksService(dataManager: DataManager.shared),
-            journalService: JournalService(dataManager: DataManager.shared, encryptionService: EncryptionService.shared)
-        ))
+        // Lazy initialization to avoid blocking app startup
+        // Services will be created on first access for better performance
+        self._dashboardDataService = StateObject(wrappedValue: DashboardDataService.lazy)
     }
     
     var body: some View {
@@ -81,6 +75,11 @@ struct ContentView: View {
             
             // Configure navigation bar to prevent white backgrounds during transitions
             configureNavigationBar()
+            
+            // Log performance metrics periodically
+            DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
+                dataManager.logPerformanceMetrics()
+            }
         }
         .sheet(isPresented: $showingProfilePictureEditor) {
             ProfilePictureEditorView()
@@ -94,12 +93,12 @@ struct ContentView: View {
         switch selectedView {
         case .dashboard:
             dashboardView
-        case .notes:
-            NotesView(dataManager: dataManager, encryptionService: securityManager.encryptionService)
         case .tasks:
             TasksView(dataManager: dataManager)
         case .journal:
             JournalView(dataManager: dataManager, encryptionService: securityManager.encryptionService)
+        case .notes:
+            NotesListView()
         case .calendar:
             CalendarView()
         case .analytics:
@@ -140,7 +139,7 @@ struct ContentView: View {
                     
                     
                     // Bottom Spacing
-                    Spacer(minLength: 100)
+                    Spacer(minLength: 80)
                 }
             }
                    .onAppear {
@@ -265,24 +264,6 @@ struct ContentView: View {
                 .scaleEffect(0.7)
                 .frame(width: 180, height: 90)
                 
-                // Notes Created
-                QuickStatCard(
-                    title: "Notes",
-                    value: "\(dashboardDataService.dashboardStats.notesThisWeek)",
-                    subtitle: "this week",
-                    icon: "note.text",
-                    color: .blue,
-                    progress: dashboardDataService.dashboardStats.notesProgress,
-                    action: {
-                        selectedView = .notes
-                        withAnimation(.spring(response: 0.5, dampingFraction: 0.8, blendDuration: 0.1)) {
-                            isMenuOpen = false
-                        }
-                    }
-                )
-                .scaleEffect(0.7)
-                .frame(width: 180, height: 90)
-                
                 // Journal Entries
                 QuickStatCard(
                     title: "Journal",
@@ -293,6 +274,24 @@ struct ContentView: View {
                     progress: dashboardDataService.dashboardStats.journalProgress,
                     action: {
                         selectedView = .journal
+                        withAnimation(.spring(response: 0.5, dampingFraction: 0.8, blendDuration: 0.1)) {
+                            isMenuOpen = false
+                        }
+                    }
+                )
+                .scaleEffect(0.7)
+                .frame(width: 180, height: 90)
+                
+                // Notes
+                QuickStatCard(
+                    title: "Notes",
+                    value: "\(dataManager.getAppStatistics().notesToday)",
+                    subtitle: "created today",
+                    icon: "doc.text",
+                    color: .orange,
+                    progress: 0.6, // TODO: Calculate notes progress
+                    action: {
+                        selectedView = .notes
                         withAnimation(.spring(response: 0.5, dampingFraction: 0.8, blendDuration: 0.1)) {
                             isMenuOpen = false
                         }

@@ -95,7 +95,6 @@ struct TabBuilder {
         
         BottomNavigationBar(selectedTab: .constant(TabItem(title: "Dashboard", icon: "house"))) {                                                                                                   
             TabItem(title: "Dashboard", icon: "house")
-            TabItem(title: "Notes", icon: "note.text")
             TabItem(title: "Planner", icon: "calendar")
             TabItem(title: "Profile", icon: "person.circle")
         }

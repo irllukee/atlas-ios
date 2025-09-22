@@ -12,13 +12,15 @@ class PerformanceService: ObservableObject {
     
     // Performance settings
     private let maxVisibleNotes = 50
-    private let imageCacheSize = 100
+    private let imageCacheSize = 50 // Reduced from 100 for better memory management
     private let textCacheSize = 200
+    private let maxImageCacheSize = 50 * 1024 * 1024 // 50MB limit
     
     // Caches
     private var imageCache: [String: UIImage] = [:]
     private var textCache: [String: NSAttributedString] = [:]
     private var notePreviewCache: [String: String] = [:]
+    private var currentImageCacheSize: Int = 0
     
     private init() {
         setupMemoryWarningObserver()
@@ -42,6 +44,7 @@ class PerformanceService: ObservableObject {
         imageCache.removeAll()
         textCache.removeAll()
         notePreviewCache.removeAll()
+        currentImageCacheSize = 0
         print("🧹 Performance: Caches cleared due to memory pressure")
     }
     
@@ -108,14 +111,31 @@ class PerformanceService: ObservableObject {
         // Resize image if too large
         let optimizedImage = resizeImageIfNeeded(image, maxSize: CGSize(width: 300, height: 300))
         
-        // Cache management
-        if imageCache.count >= imageCacheSize {
-            let keysToRemove = Array(imageCache.keys.prefix(imageCacheSize / 4))
-            keysToRemove.forEach { imageCache.removeValue(forKey: $0) }
+        // Calculate image size for cache management
+        let imageSize = estimateImageSize(optimizedImage)
+        
+        // Cache management with size limits
+        if currentImageCacheSize + imageSize > maxImageCacheSize || imageCache.count >= imageCacheSize {
+            clearOldestImages()
         }
         
         imageCache[id] = optimizedImage
+        currentImageCacheSize += imageSize
         return optimizedImage
+    }
+    
+    private func estimateImageSize(_ image: UIImage) -> Int {
+        guard let cgImage = image.cgImage else { return 0 }
+        return cgImage.width * cgImage.height * 4 // Rough estimate: width * height * 4 bytes per pixel
+    }
+    
+    private func clearOldestImages() {
+        let keysToRemove = Array(imageCache.keys.prefix(imageCacheSize / 4))
+        keysToRemove.forEach { key in
+            if let image = imageCache.removeValue(forKey: key) {
+                currentImageCacheSize -= estimateImageSize(image)
+            }
+        }
     }
     
     private func resizeImageIfNeeded(_ image: UIImage, maxSize: CGSize) -> UIImage {
@@ -170,7 +190,8 @@ class PerformanceService: ObservableObject {
             imageCacheSize: imageCache.count,
             textCacheSize: textCache.count,
             notePreviewCacheSize: notePreviewCache.count,
-            memoryUsage: getMemoryUsage()
+            memoryUsage: getMemoryUsage(),
+            imageCacheMemoryUsage: currentImageCacheSize
         )
     }
     
@@ -206,9 +227,14 @@ struct PerformanceMetrics {
     let textCacheSize: Int
     let notePreviewCacheSize: Int
     let memoryUsage: UInt64
+    let imageCacheMemoryUsage: Int
     
     var memoryUsageMB: Double {
         return Double(memoryUsage) / 1024.0 / 1024.0
+    }
+    
+    var imageCacheMemoryUsageMB: Double {
+        return Double(imageCacheMemoryUsage) / 1024.0 / 1024.0
     }
     
     var totalCacheSize: Int {

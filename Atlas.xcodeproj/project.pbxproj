@@ -6,6 +6,11 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		2F77DA2A2E80F83D00060E08 /* Aztec in Frameworks */ = {isa = PBXBuildFile; productRef = 2F77DA292E80F83D00060E08 /* Aztec */; };
+		2F77DA2C2E80F83D00060E08 /* WordPressEditor in Frameworks */ = {isa = PBXBuildFile; productRef = 2F77DA2B2E80F83D00060E08 /* WordPressEditor */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXContainerItemProxy section */
 		2FD0CC122E77D6700060D427 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -65,6 +70,8 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				2F77DA2A2E80F83D00060E08 /* Aztec in Frameworks */,
+				2F77DA2C2E80F83D00060E08 /* WordPressEditor in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -125,6 +132,8 @@
 			);
 			name = Atlas;
 			packageProductDependencies = (
+				2F77DA292E80F83D00060E08 /* Aztec */,
+				2F77DA2B2E80F83D00060E08 /* WordPressEditor */,
 			);
 			productName = Atlas;
 			productReference = 2FD0CC022E77D66E0060D427 /* Atlas.app */;
@@ -208,6 +217,9 @@
 			);
 			mainGroup = 2FD0CBF92E77D66E0060D427;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				2F77DA282E80F83D00060E08 /* XCRemoteSwiftPackageReference "AztecEditor-iOS" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 2FD0CC032E77D66E0060D427 /* Products */;
 			projectDirPath = "";
@@ -413,6 +425,7 @@
 				DEVELOPMENT_TEAM = QD6PAWS488;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				HEADER_SEARCH_PATHS = "$(SDKROOT)/usr/include/libxml2/";
 				INFOPLIST_FILE = Atlas/Info.plist;
 				INFOPLIST_KEY_NSCalendarsUsageDescription = "Atlas integrates with your calendar to display today's events and help you plan your day.";
 				INFOPLIST_KEY_NSRemindersUsageDescription = "Atlas can create reminders for your tasks and important events to help you stay organized.";
@@ -446,6 +459,7 @@
 				DEVELOPMENT_TEAM = QD6PAWS488;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				HEADER_SEARCH_PATHS = "$(SDKROOT)/usr/include/libxml2/";
 				INFOPLIST_FILE = Atlas/Info.plist;
 				INFOPLIST_KEY_NSCalendarsUsageDescription = "Atlas integrates with your calendar to display today's events and help you plan your day.";
 				INFOPLIST_KEY_NSRemindersUsageDescription = "Atlas can create reminders for your tasks and important events to help you stay organized.";
@@ -581,6 +595,30 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		2F77DA282E80F83D00060E08 /* XCRemoteSwiftPackageReference "AztecEditor-iOS" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/wordpress-mobile/AztecEditor-iOS";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 1.20.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		2F77DA292E80F83D00060E08 /* Aztec */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 2F77DA282E80F83D00060E08 /* XCRemoteSwiftPackageReference "AztecEditor-iOS" */;
+			productName = Aztec;
+		};
+		2F77DA2B2E80F83D00060E08 /* WordPressEditor */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 2F77DA282E80F83D00060E08 /* XCRemoteSwiftPackageReference "AztecEditor-iOS" */;
+			productName = WordPressEditor;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 2FD0CBFA2E77D66E0060D427 /* Project object */;
 }

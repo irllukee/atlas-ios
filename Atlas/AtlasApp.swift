@@ -8,6 +8,7 @@ struct AtlasApp: App {
     @StateObject private var dataManager = DataManager.shared
     @StateObject private var securityManager = SecurityManager.shared
     @StateObject private var biometricService = BiometricService.shared
+    @StateObject private var permissionManager = PermissionManager.shared
     
     // MARK: - App State
     @State private var isAppReady = false
@@ -49,12 +50,20 @@ struct AtlasApp: App {
                     .ignoresSafeArea(.all)
                 
                 if isAppReady {
-                    // Show main app directly - no authentication required
-                    ContentView()
-                        .environmentObject(dataManager)
-                        .environmentObject(securityManager)
-                        .environmentObject(biometricService)
-                        .environment(\.managedObjectContext, dataManager.coreDataStack.persistentContainer.viewContext)
+                    // Check if onboarding is complete
+                    if permissionManager.isOnboardingComplete {
+                        // Show main app
+                        ContentView()
+                            .environmentObject(dataManager)
+                            .environmentObject(securityManager)
+                            .environmentObject(biometricService)
+                            .environmentObject(permissionManager)
+                            .environment(\.managedObjectContext, dataManager.coreDataStack.persistentContainer.viewContext)
+                    } else {
+                        // Show permission onboarding
+                        PermissionOnboardingView()
+                            .environmentObject(permissionManager)
+                    }
                 } else {
                     SplashView()
                         .onAppear {
@@ -71,6 +80,11 @@ struct AtlasApp: App {
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
             withAnimation(.easeInOut(duration: 0.3)) {
                 isAppReady = true
+            }
+            
+            // Log performance metrics after app is ready
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+                dataManager.logPerformanceMetrics()
             }
         }
     }

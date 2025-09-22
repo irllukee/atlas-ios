@@ -44,49 +44,88 @@ class CalendarService: ObservableObject {
     // MARK: - Initialization
     init() {
         checkPermissionStatus()
-        loadCalendars()
+        // Only load calendars if we have permission
+        if permissionStatus == .authorized {
+            loadCalendars()
+        }
     }
     
     // MARK: - Permission Management
     
     func requestCalendarAccess() async -> Bool {
         do {
-            let granted = try await eventStore.requestFullAccessToEvents()
-            self.permissionStatus = granted ? .authorized : .denied
-            if granted {
-                loadCalendars()
+            // Check if we're on iOS 17+ and use the new API
+            if #available(iOS 17.0, *) {
+                let granted = try await eventStore.requestFullAccessToEvents()
+                self.permissionStatus = granted ? .authorized : .denied
+                if granted {
+                    loadCalendars()
+                }
+                return granted
+            } else {
+                // Use the older API for iOS 16 and below
+                let granted = try await eventStore.requestAccess(to: .event)
+                self.permissionStatus = granted ? .authorized : .denied
+                if granted {
+                    loadCalendars()
+                }
+                return granted
             }
-            return granted
         } catch {
             self.permissionStatus = .denied
             self.errorMessage = "Failed to request calendar access: \(error.localizedDescription)"
+            print("❌ Calendar permission request failed: \(error)")
             return false
         }
     }
     
     private func checkPermissionStatus() {
-        switch EKEventStore.authorizationStatus(for: .event) {
-        case .notDetermined:
-            permissionStatus = .notDetermined
-        case .denied:
-            permissionStatus = .denied
-        case .authorized:
-            permissionStatus = .authorized
-        case .restricted:
-            permissionStatus = .restricted
-        case .fullAccess:
-            permissionStatus = .authorized
-        case .writeOnly:
-            permissionStatus = .denied
-        @unknown default:
-            permissionStatus = .notDetermined
+        if #available(iOS 17.0, *) {
+            // iOS 17+ uses the new authorization status
+            switch EKEventStore.authorizationStatus(for: .event) {
+            case .notDetermined:
+                permissionStatus = .notDetermined
+            case .denied:
+                permissionStatus = .denied
+            case .authorized:
+                permissionStatus = .authorized
+            case .restricted:
+                permissionStatus = .restricted
+            case .fullAccess:
+                permissionStatus = .authorized
+            case .writeOnly:
+                permissionStatus = .denied
+            @unknown default:
+                permissionStatus = .notDetermined
+            }
+        } else {
+            // iOS 16 and below use the older API
+            switch EKEventStore.authorizationStatus(for: .event) {
+            case .notDetermined:
+                permissionStatus = .notDetermined
+            case .denied:
+                permissionStatus = .denied
+            case .authorized:
+                permissionStatus = .authorized
+            case .restricted:
+                permissionStatus = .restricted
+            case .fullAccess:
+                permissionStatus = .authorized
+            case .writeOnly:
+                permissionStatus = .authorized
+            @unknown default:
+                permissionStatus = .notDetermined
+            }
         }
     }
     
     // MARK: - Calendar Management
     
     func loadCalendars() {
-        guard permissionStatus == .authorized else { return }
+        guard permissionStatus == .authorized else { 
+            calendars = []
+            return 
+        }
         
         calendars = eventStore.calendars(for: .event)
             .filter { $0.allowsContentModifications }
@@ -99,7 +138,10 @@ class CalendarService: ObservableObject {
     // MARK: - Event Management
     
     func loadEvents(for dateRange: DateInterval) {
-        guard permissionStatus == .authorized else { return }
+        guard permissionStatus == .authorized else { 
+            events = []
+            return 
+        }
         
         isLoading = true
         errorMessage = nil
@@ -108,6 +150,7 @@ class CalendarService: ObservableObject {
         let fetchedEvents = eventStore.events(matching: predicate)
         
         self.events = fetchedEvents.sorted { $0.startDate < $1.startDate }
+        
         self.isLoading = false
     }
     

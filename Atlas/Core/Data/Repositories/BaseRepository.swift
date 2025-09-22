@@ -18,6 +18,7 @@ class BaseRepository<T: NSManagedObject>: @unchecked Sendable {
     func fetchAll() -> [T] {
         let request = NSFetchRequest<T>(entityName: String(describing: T.self))
         request.fetchBatchSize = 20 // Batch loading for performance
+        request.fetchLimit = 100 // Prevent memory issues with large datasets
         
         do {
             return try context.fetch(request)
@@ -40,10 +41,12 @@ class BaseRepository<T: NSManagedObject>: @unchecked Sendable {
         }
     }
     
-    func fetch(predicate: NSPredicate, sortDescriptors: [NSSortDescriptor] = []) -> [T] {
+    func fetch(predicate: NSPredicate, sortDescriptors: [NSSortDescriptor] = [], limit: Int = 50) -> [T] {
         let request = NSFetchRequest<T>(entityName: String(describing: T.self))
         request.predicate = predicate
         request.sortDescriptors = sortDescriptors
+        request.fetchLimit = limit
+        request.fetchBatchSize = 20
         
         do {
             return try context.fetch(request)

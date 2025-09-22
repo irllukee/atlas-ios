@@ -425,15 +425,20 @@ struct RadialMindMap: View {
     private func handleDrop(on target: Node, providers: [NSItemProvider]) -> Bool {
         guard let provider = providers.first else { return false }
         
+        // Extract UUID string before entering closure to avoid Sendable warning
+        let targetUUIDString = target.uuid?.uuidString
+        
         _ = provider.loadObject(ofClass: NSString.self) { object, error in
             guard let idString = object as? String,
                   let uuid = UUID(uuidString: idString) else { return }
 
             _Concurrency.Task { @MainActor in
-                guard let dragNode = findNode(with: uuid) else { return }
+                guard let dragNode = findNode(with: uuid),
+                      let targetUUIDString = targetUUIDString,
+                      let targetUUID = UUID(uuidString: targetUUIDString),
+                      let targetNode = findNode(with: targetUUID) else { return }
                 
                 // Prevent making a node its own ancestor
-                let targetNode = target
                 if isAncestor(dragNode, of: targetNode) { return }
 
                 // Remove from old parent
@@ -442,8 +447,8 @@ struct RadialMindMap: View {
                 }
                 
                 // Add to new parent
-                dragNode.parent = target
-                target.addToChildren(dragNode)
+                dragNode.parent = targetNode
+                targetNode.addToChildren(dragNode)
                 
                 do {
                     try viewContext.save()

@@ -1,7 +1,7 @@
 import Foundation
 import CoreData
 import SwiftUI
-import EventKit
+@preconcurrency import EventKit
 
 /// Service for providing real-time dashboard statistics and data
 @MainActor
@@ -10,18 +10,26 @@ class DashboardDataService: ObservableObject {
     // MARK: - Properties
     private let dataManager: DataManager
     private let calendarService: CalendarService
-    private let notesService: NotesService
     private let tasksService: TasksService
     private let journalService: JournalService
     
     @Published var dashboardStats = DashboardStatistics()
     @Published var isLoading = false
     
+    // MARK: - Lazy Initialization
+    static var lazy: DashboardDataService {
+        return DashboardDataService(
+            dataManager: DataManager.shared,
+            calendarService: CalendarService(),
+            tasksService: TasksService(dataManager: DataManager.shared),
+            journalService: JournalService(dataManager: DataManager.shared, encryptionService: EncryptionService.shared)
+        )
+    }
+    
     // MARK: - Initialization
-    init(dataManager: DataManager, calendarService: CalendarService, notesService: NotesService, tasksService: TasksService, journalService: JournalService) {
+    init(dataManager: DataManager, calendarService: CalendarService, tasksService: TasksService, journalService: JournalService) {
         self.dataManager = dataManager
         self.calendarService = calendarService
-        self.notesService = notesService
         self.tasksService = tasksService
         self.journalService = journalService
         
@@ -36,7 +44,6 @@ class DashboardDataService: ObservableObject {
             // Load data in parallel for better performance
             await withTaskGroup(of: Void.self) { group in
                 group.addTask { await self.loadTasksData() }
-                group.addTask { await self.loadNotesData() }
                 group.addTask { await self.loadJournalData() }
                 group.addTask { await self.loadCalendarData() }
                 
@@ -44,7 +51,7 @@ class DashboardDataService: ObservableObject {
             }
             
             await MainActor.run {
-                isLoading = false
+                self.isLoading = false
             }
         }
     }
@@ -72,24 +79,6 @@ class DashboardDataService: ObservableObject {
         dashboardStats.tasksProgress = totalToday > 0 ? Double(completedToday) / Double(totalToday) : 0.0
     }
     
-    // MARK: - Notes Data
-    private func loadNotesData() async {
-        let calendar = Calendar.current
-        let now = Date()
-        let startOfWeek = calendar.dateInterval(of: .weekOfYear, for: now)?.start ?? now
-        
-        // Get all notes
-        let allNotes = notesService.notes
-        
-        // Filter notes created this week
-        let notesThisWeek = allNotes.filter { note in
-            guard let createdAt = note.createdAt else { return false }
-            return createdAt >= startOfWeek
-        }
-        
-        dashboardStats.notesThisWeek = notesThisWeek.count
-        dashboardStats.notesProgress = min(Double(notesThisWeek.count) / 10.0, 1.0) // Progress based on 10 notes per week
-    }
     
     // MARK: - Journal Data
     private func loadJournalData() async {
@@ -162,8 +151,6 @@ struct DashboardStatistics {
     var tasksTotalToday: Int = 0
     var tasksProgress: Double = 0.0
     
-    var notesThisWeek: Int = 0
-    var notesProgress: Double = 0.0
     
     var journalEntriesToday: Int = 0
     var journalProgress: Double = 0.0

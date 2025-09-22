@@ -2,312 +2,301 @@ import Foundation
 import CoreData
 import SwiftUI
 
-/// Comprehensive Notes service providing CRUD operations, search, and templates
+/// Service for managing notes, folders, and tags
 @MainActor
-class NotesService: ObservableObject {
+final class NotesService: ObservableObject {
+    static let shared = NotesService()
     
-    // MARK: - Properties
-    private let noteRepository: NoteRepository
-    private let encryptionService: EncryptionService
-    private let dataManager: DataManager
-    
+    // MARK: - Published Properties
     @Published var notes: [Note] = []
-    @Published var filteredNotes: [Note] = []
-    @Published var searchText: String = ""
-    @Published var sortOrder: NoteSortOrder = .updatedAtDescending
+    @Published var folders: [NoteFolder] = []
+    @Published var tags: [NoteTag] = []
+    @Published var isLoading = false
+    @Published var searchText = ""
+    @Published var selectedFolder: NoteFolder?
+    @Published var selectedTag: NoteTag?
+    
+    // MARK: - Core Data
+    private let context: NSManagedObjectContext
+    private let coreDataStack: CoreDataStack
+    
+    // MARK: - Auto-save
+    private var autoSaveTimer: Timer?
+    private let autoSaveInterval: TimeInterval = 2.0
     
     // MARK: - Initialization
-    init(dataManager: DataManager, encryptionService: EncryptionService) {
-        self.dataManager = dataManager
-        self.encryptionService = encryptionService
-        self.noteRepository = NoteRepository(context: dataManager.coreDataStack.viewContext)
-    }
-    
-    // MARK: - CRUD Operations
-    
-    /// Create a new note
-    func createNote(title: String, content: String, category: String? = nil, isEncrypted: Bool = false) -> Note? {
-        let note = noteRepository.createNote(
-            title: title,
-            content: content,
-            isEncrypted: isEncrypted
-        )
+    private init() {
+        self.coreDataStack = CoreDataStack.shared
+        self.context = coreDataStack.viewContext
         
-        loadNotes()
-        return note
+        setupAutoSave()
+        loadData()
     }
     
-    /// Update an existing note
-    func updateNote(_ note: Note, title: String? = nil, content: String? = nil, category: String? = nil, isEncrypted: Bool? = nil) -> Bool {
-        let success = noteRepository.updateNote(
-            note,
-            title: title,
-            content: content,
-            isEncrypted: isEncrypted
-        )
+    // MARK: - Data Loading
+    func loadData() {
+        isLoading = true
         
-        if success {
-            loadNotes()
-        }
-        
-        return success
-    }
-    
-    /// Delete a note
-    func deleteNote(_ note: Note) -> Bool {
-        let success = noteRepository.delete(note)
-        if success {
-            loadNotes()
-        }
-        return success
-    }
-    
-    /// Get a note by ID
-    func getNote(by id: UUID) -> Note? {
-        return noteRepository.fetch(by: id)
-    }
-    
-    // MARK: - Rich Text Operations
-    
-    /// Create a note with rich text formatting
-    func createRichTextNote(title: String, content: NSAttributedString, category: String? = nil, isEncrypted: Bool = false) -> Note? {
-        let htmlContent = attributedStringToHTML(content)
-        return createNote(title: title, content: htmlContent, category: category, isEncrypted: isEncrypted)
-    }
-    
-    /// Update a note with rich text formatting
-    func updateRichTextNote(_ note: Note, title: String? = nil, content: NSAttributedString? = nil, category: String? = nil) -> Bool {
-        let htmlContent = content != nil ? attributedStringToHTML(content!) : nil
-        return updateNote(note, title: title, content: htmlContent, category: category)
-    }
-    
-    /// Convert NSAttributedString to HTML
-    private func attributedStringToHTML(_ attributedString: NSAttributedString) -> String {
-        let options: [NSAttributedString.DocumentAttributeKey: Any] = [
-            .documentType: NSAttributedString.DocumentType.html,
-            .characterEncoding: String.Encoding.utf8.rawValue
+        // Load notes
+        let notesRequest: NSFetchRequest<Note> = Note.fetchRequest()
+        notesRequest.sortDescriptors = [
+            NSSortDescriptor(keyPath: \Note.updatedAt, ascending: false)
         ]
         
         do {
-            let htmlData = try attributedString.data(from: NSRange(location: 0, length: attributedString.length), documentAttributes: options)
-            return String(data: htmlData, encoding: .utf8) ?? ""
+            notes = try context.fetch(notesRequest)
         } catch {
-            print("❌ Failed to convert attributed string to HTML: \(error)")
-            return attributedString.string
-        }
-    }
-    
-    /// Convert HTML to NSAttributedString
-    func htmlToAttributedString(_ html: String) -> NSAttributedString {
-        guard let data = html.data(using: .utf8) else {
-            return NSAttributedString(string: html)
+            print("❌ Failed to load notes: \(error)")
         }
         
+        // Load folders
+        let foldersRequest: NSFetchRequest<NoteFolder> = NoteFolder.fetchRequest()
+        foldersRequest.sortDescriptors = [
+            NSSortDescriptor(keyPath: \NoteFolder.name, ascending: true)
+        ]
+        
         do {
-            return try NSAttributedString(
-                data: data,
-                options: [.documentType: NSAttributedString.DocumentType.html],
-                documentAttributes: nil
-            )
+            folders = try context.fetch(foldersRequest)
         } catch {
-            print("❌ Failed to convert HTML to attributed string: \(error)")
-            return NSAttributedString(string: html)
+            print("❌ Failed to load folders: \(error)")
         }
+        
+        // Load tags
+        let tagsRequest: NSFetchRequest<NoteTag> = NoteTag.fetchRequest()
+        tagsRequest.sortDescriptors = [
+            NSSortDescriptor(keyPath: \NoteTag.name, ascending: true)
+        ]
+        
+        do {
+            tags = try context.fetch(tagsRequest)
+        } catch {
+            print("❌ Failed to load tags: \(error)")
+        }
+        
+        isLoading = false
     }
     
-    // MARK: - Search & Filtering
-    
-    /// Search notes by query
-    func searchNotes(query: String) -> [Note] {
-        return noteRepository.searchNotes(query: query)
+    // MARK: - Note Operations
+    func createNote(title: String = "", content: String = "", folder: NoteFolder? = nil) -> Note {
+        let note = Note(context: context)
+        note.uuid = UUID()
+        note.title = title.isEmpty ? "Untitled Note" : title
+        note.content = content
+        note.createdAt = Date()
+        note.updatedAt = Date()
+        note.isEncrypted = false
+        note.isFavorite = false
+        note.lastAccessedAt = Date()
+        note.folder = folder
+        
+        saveContext()
+        loadData()
+        
+        return note
     }
     
-    /// Filter notes based on current criteria
-    func filterNotes() {
+    func updateNote(_ note: Note, title: String? = nil, content: String? = nil) {
+        if let title = title {
+            note.title = title
+        }
+        if let content = content {
+            note.content = content
+        }
+        note.updatedAt = Date()
+        note.lastAccessedAt = Date()
+        
+        saveContext()
+    }
+    
+    func deleteNote(_ note: Note) {
+        context.delete(note)
+        saveContext()
+        loadData()
+    }
+    
+    func toggleFavorite(_ note: Note) {
+        note.isFavorite.toggle()
+        note.updatedAt = Date()
+        saveContext()
+        loadData()
+    }
+    
+    // MARK: - Folder Operations
+    func createFolder(name: String, color: String = "#007AFF") -> NoteFolder {
+        let folder = NoteFolder(context: context)
+        folder.uuid = UUID()
+        folder.name = name
+        folder.color = color
+        folder.createdAt = Date()
+        folder.updatedAt = Date()
+        
+        saveContext()
+        loadData()
+        
+        return folder
+    }
+    
+    func updateFolder(_ folder: NoteFolder, name: String? = nil, color: String? = nil) {
+        if let name = name {
+            folder.name = name
+        }
+        if let color = color {
+            folder.color = color
+        }
+        folder.updatedAt = Date()
+        
+        saveContext()
+        loadData()
+    }
+    
+    func deleteFolder(_ folder: NoteFolder) {
+        // Move notes to no folder
+        for note in folder.notes?.allObjects as? [Note] ?? [] {
+            note.folder = nil
+        }
+        
+        context.delete(folder)
+        saveContext()
+        loadData()
+    }
+    
+    // MARK: - Tag Operations
+    func createTag(name: String, color: String = "#FF9500") -> NoteTag {
+        let tag = NoteTag(context: context)
+        tag.uuid = UUID()
+        tag.name = name
+        tag.color = color
+        tag.createdAt = Date()
+        tag.updatedAt = Date()
+        
+        saveContext()
+        loadData()
+        
+        return tag
+    }
+    
+    func updateTag(_ tag: NoteTag, name: String? = nil, color: String? = nil) {
+        if let name = name {
+            tag.name = name
+        }
+        if let color = color {
+            tag.color = color
+        }
+        tag.updatedAt = Date()
+        
+        saveContext()
+        loadData()
+    }
+    
+    func deleteTag(_ tag: NoteTag) {
+        context.delete(tag)
+        saveContext()
+        loadData()
+    }
+    
+    func addTagToNote(_ note: Note, tag: NoteTag) {
+        note.addToTags(tag)
+        note.updatedAt = Date()
+        saveContext()
+        loadData()
+    }
+    
+    func removeTagFromNote(_ note: Note, tag: NoteTag) {
+        note.removeFromTags(tag)
+        note.updatedAt = Date()
+        saveContext()
+        loadData()
+    }
+    
+    // MARK: - Search and Filtering
+    var filteredNotes: [Note] {
         var filtered = notes
         
-        // Apply search filter
+        // Filter by folder
+        if let selectedFolder = selectedFolder {
+            filtered = filtered.filter { $0.folder == selectedFolder }
+        }
+        
+        // Filter by tag
+        if let selectedTag = selectedTag {
+            filtered = filtered.filter { note in
+                note.tags?.contains(selectedTag) == true
+            }
+        }
+        
+        // Filter by search text
         if !searchText.isEmpty {
             filtered = filtered.filter { note in
-                note.title?.localizedCaseInsensitiveContains(searchText) == true ||
-                note.content?.localizedCaseInsensitiveContains(searchText) == true
+                (note.title?.localizedCaseInsensitiveContains(searchText) == true) ||
+                (note.content?.localizedCaseInsensitiveContains(searchText) == true)
             }
         }
         
-        // Apply sorting
-        filtered.sort { note1, note2 in
-            switch sortOrder {
-            case .titleAscending:
-                return (note1.title ?? "") < (note2.title ?? "")
-            case .titleDescending:
-                return (note1.title ?? "") > (note2.title ?? "")
-            case .createdAtAscending:
-                return (note1.createdAt ?? Date.distantPast) < (note2.createdAt ?? Date.distantPast)
-            case .createdAtDescending:
-                return (note1.createdAt ?? Date.distantPast) > (note2.createdAt ?? Date.distantPast)
-            case .updatedAtAscending:
-                return (note1.updatedAt ?? Date.distantPast) < (note2.updatedAt ?? Date.distantPast)
-            case .updatedAtDescending:
-                return (note1.updatedAt ?? Date.distantPast) > (note2.updatedAt ?? Date.distantPast)
+        return filtered
+    }
+    
+    var favoriteNotes: [Note] {
+        return notes.filter { $0.isFavorite }
+    }
+    
+    var recentNotes: [Note] {
+        return Array(notes.prefix(10))
+    }
+    
+    // MARK: - Auto-save
+    private func setupAutoSave() {
+        autoSaveTimer = Timer.scheduledTimer(withTimeInterval: autoSaveInterval, repeats: true) { [weak self] _ in
+            DispatchQueue.main.async {
+                self?.performAutoSave()
             }
         }
+    }
+    
+    private func performAutoSave() {
+        guard context.hasChanges else { return }
         
-        filteredNotes = filtered
+        do {
+            try context.save()
+        } catch {
+            print("❌ Auto-save failed: \(error)")
+        }
     }
     
-    /// Clear all filters
-    func clearFilters() {
-        searchText = ""
-        sortOrder = .updatedAtDescending
-        filterNotes()
+    // MARK: - Context Management
+    func saveContext() {
+        do {
+            try context.save()
+        } catch {
+            print("❌ Failed to save context: \(error)")
+        }
     }
     
-    // MARK: - Templates
-    
-    /// Create a note from template
-    func createNoteFromTemplate(_ template: NoteTemplate) -> Note? {
-        return createNote(
-            title: template.title,
-            content: template.content,
-            category: template.category,
-            isEncrypted: template.isEncrypted
+    // MARK: - Statistics
+    func getNotesStatistics() -> NotesStatistics {
+        return NotesStatistics(
+            totalNotes: notes.count,
+            favoriteNotes: favoriteNotes.count,
+            notesInFolders: notes.filter { $0.folder != nil }.count,
+            totalFolders: folders.count,
+            totalTags: tags.count,
+            notesCreatedToday: notes.filter { Calendar.current.isDateInToday($0.createdAt ?? Date.distantPast) }.count
         )
     }
     
-    /// Get available note templates
-    func getNoteTemplates() -> [NoteTemplate] {
-        return NoteTemplate.allTemplates
-    }
-    
-    // MARK: - Statistics & Analytics
-    
-    /// Get total note count
-    func getTotalNoteCount() -> Int {
-        return noteRepository.getTotalCount()
-    }
-    
-    /// Get encrypted note count
-    func getEncryptedNoteCount() -> Int {
-        return noteRepository.getEncryptedCount()
-    }
-    
-    /// Get notes created today
-    func getNotesCreatedToday() -> [Note] {
-        return noteRepository.getNotesCreatedToday()
-    }
-    
-    /// Get notes created this week
-    func getNotesCreatedThisWeek() -> [Note] {
-        return noteRepository.getNotesCreatedThisWeek()
-    }
-    
-    /// Get recent notes
-    func getRecentNotes(limit: Int = 10) -> [Note] {
-        return noteRepository.fetchRecent(limit: limit)
-    }
-    
-    // MARK: - Encryption Support
-    
-    /// Encrypt a note's content
-    func encryptNote(_ note: Note) -> Bool {
-        guard let content = note.content else { return false }
-        
-        do {
-            let encryptedData = try encryptionService.encrypt(content)
-            // Store the encrypted data as base64 string in the content field
-            note.content = encryptedData.data.base64EncodedString()
-            note.isEncrypted = true
-            return noteRepository.save()
-        } catch {
-            print("❌ Failed to encrypt note: \(error)")
-            return false
+    // MARK: - Cleanup
+    deinit {
+        DispatchQueue.main.async { [weak self] in
+            self?.autoSaveTimer?.invalidate()
         }
-    }
-    
-    /// Decrypt a note's content
-    func decryptNote(_ note: Note) -> String? {
-        guard let encryptedContentString = note.content, note.isEncrypted else {
-            return note.content
-        }
-        
-        do {
-            // Convert base64 string back to data
-            guard let encryptedData = Data(base64Encoded: encryptedContentString) else {
-                print("❌ Failed to decode base64 encrypted content")
-                return nil
-            }
-            
-            // Create EncryptedData object
-            let encryptedDataObj = EncryptedData(
-                data: encryptedData,
-                timestamp: Date(),
-                version: "1.0"
-            )
-            
-            return try encryptionService.decryptToString(encryptedDataObj)
-        } catch {
-            print("❌ Failed to decrypt note: \(error)")
-            return nil
-        }
-    }
-    
-    // MARK: - Public Methods
-    
-    /// Load all notes from Core Data
-    func loadNotes() {
-        let fetchedNotes = noteRepository.fetchAll()
-        notes = fetchedNotes
-        filterNotes()
     }
 }
 
-// MARK: - Supporting Types
-
-enum NoteSortOrder: String, CaseIterable {
-    case titleAscending = "Title (A-Z)"
-    case titleDescending = "Title (Z-A)"
-    case createdAtAscending = "Created (Oldest First)"
-    case createdAtDescending = "Created (Newest First)"
-    case updatedAtAscending = "Updated (Oldest First)"
-    case updatedAtDescending = "Updated (Newest First)"
-}
-
-struct NoteTemplate {
-    let title: String
-    let content: String
-    let category: String?
-    let isEncrypted: Bool
-    
-    static let allTemplates: [NoteTemplate] = [
-        NoteTemplate(
-            title: "Meeting Notes",
-            content: "## Meeting: [Topic]\n\n**Date:** [Date]\n**Attendees:** [List]\n\n### Agenda\n- [ ] Item 1\n- [ ] Item 2\n- [ ] Item 3\n\n### Action Items\n- [ ] [Action 1] - [Assignee]\n- [ ] [Action 2] - [Assignee]\n\n### Notes\n[Meeting notes here]",
-            category: "Work",
-            isEncrypted: false
-        ),
-        NoteTemplate(
-            title: "Daily Journal",
-            content: "## Daily Journal - [Date]\n\n### What went well today?\n[Write your thoughts]\n\n### What could be improved?\n[Write your thoughts]\n\n### Gratitude\n- [Gratitude item 1]\n- [Gratitude item 2]\n- [Gratitude item 3]\n\n### Tomorrow's Focus\n[What you want to focus on tomorrow]",
-            category: "Personal",
-            isEncrypted: false
-        ),
-        NoteTemplate(
-            title: "Project Planning",
-            content: "## Project: [Project Name]\n\n**Goal:** [Project goal]\n**Timeline:** [Start date] - [End date]\n\n### Tasks\n- [ ] [Task 1]\n- [ ] [Task 2]\n- [ ] [Task 3]\n\n### Resources\n- [Resource 1]\n- [Resource 2]\n\n### Notes\n[Additional notes]",
-            category: "Projects",
-            isEncrypted: false
-        ),
-        NoteTemplate(
-            title: "Book Notes",
-            content: "## [Book Title] - [Author]\n\n**Rating:** [X]/5\n**Date Read:** [Date]\n\n### Key Takeaways\n- [Takeaway 1]\n- [Takeaway 2]\n- [Takeaway 3]\n\n### Favorite Quotes\n> \"[Quote 1]\"\n\n> \"[Quote 2]\"\n\n### Summary\n[Book summary]\n\n### Action Items\n- [ ] [Action from book]",
-            category: "Learning",
-            isEncrypted: false
-        ),
-        NoteTemplate(
-            title: "Private Note",
-            content: "[Your private thoughts here]",
-            category: "Private",
-            isEncrypted: true
-        )
-    ]
+// MARK: - Notes Statistics
+struct NotesStatistics {
+    let totalNotes: Int
+    let favoriteNotes: Int
+    let notesInFolders: Int
+    let totalFolders: Int
+    let totalTags: Int
+    let notesCreatedToday: Int
 }

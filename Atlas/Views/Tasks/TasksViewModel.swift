@@ -2,6 +2,10 @@ import Foundation
 import Combine
 import CoreData
 
+// Use the Core Data Task entity directly
+// Note: Task is the Core Data entity name, not Swift's Task type
+// TaskEntity typealias is defined in TasksService.swift
+
 @MainActor
 class TasksViewModel: ObservableObject {
     // MARK: - Properties
@@ -9,8 +13,8 @@ class TasksViewModel: ObservableObject {
     private let notificationService = NotificationService.shared
     private var cancellables = Set<AnyCancellable>()
     
-    @Published var tasks: [Task] = []
-    @Published var filteredTasks: [Task] = []
+    @Published var tasks: [TaskEntity] = []
+    @Published var filteredTasks: [TaskEntity] = []
     @Published var searchText: String = ""
     @Published var selectedFilter: TaskFilter = .all
     @Published var sortOrder: TaskSortOrder = .dueDateAscending
@@ -132,7 +136,7 @@ class TasksViewModel: ObservableObject {
     }
     
     /// Update a task
-    func updateTask(_ task: Task, title: String? = nil, notes: String? = nil, priority: TaskPriority? = nil, dueDate: Date? = nil) {
+    func updateTask(_ task: TaskEntity, title: String? = nil, notes: String? = nil, priority: TaskPriority? = nil, dueDate: Date? = nil) {
         isLoading = true
         errorMessage = nil
         
@@ -160,7 +164,7 @@ class TasksViewModel: ObservableObject {
     }
     
     /// Delete a task
-    func deleteTask(_ task: Task) {
+    func deleteTask(_ task: TaskEntity) {
         isLoading = true
         errorMessage = nil
         
@@ -178,7 +182,7 @@ class TasksViewModel: ObservableObject {
     }
     
     /// Toggle task completion
-    func toggleTaskCompletion(_ task: Task) {
+    func toggleTaskCompletion(_ task: TaskEntity) {
         isLoading = true
         errorMessage = nil
         
@@ -191,7 +195,7 @@ class TasksViewModel: ObservableObject {
     }
     
     /// Complete a task
-    func completeTask(_ task: Task) {
+    func completeTask(_ task: TaskEntity) {
         isLoading = true
         errorMessage = nil
         
@@ -204,7 +208,7 @@ class TasksViewModel: ObservableObject {
     }
     
     /// Uncomplete a task
-    func uncompleteTask(_ task: Task) {
+    func uncompleteTask(_ task: TaskEntity) {
         isLoading = true
         errorMessage = nil
         
@@ -237,7 +241,7 @@ class TasksViewModel: ObservableObject {
     }
     
     /// Get tasks for a specific date
-    func getTasksForDate(_ date: Date) -> [Task] {
+    func getTasksForDate(_ date: Date) -> [TaskEntity] {
         let calendar = Calendar.current
         let startOfDay = calendar.startOfDay(for: date)
         let endOfDay = calendar.date(byAdding: .day, value: 1, to: startOfDay)!
@@ -249,7 +253,7 @@ class TasksViewModel: ObservableObject {
     }
     
     /// Get overdue tasks
-    func getOverdueTasks() -> [Task] {
+    func getOverdueTasks() -> [TaskEntity] {
         return tasks.filter { task in
             guard let dueDate = task.dueDate else { return false }
             return dueDate < Date() && !task.isCompleted
@@ -257,7 +261,7 @@ class TasksViewModel: ObservableObject {
     }
     
     /// Get high priority tasks
-    func getHighPriorityTasks() -> [Task] {
+    func getHighPriorityTasks() -> [TaskEntity] {
         return tasks.filter { task in
             return task.priority >= 3 && !task.isCompleted
         }

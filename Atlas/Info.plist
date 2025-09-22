@@ -16,5 +16,13 @@
 		<string>nearby-interaction</string>
 		<string>voip</string>
 	</array>
+	<key>NSCalendarsUsageDescription</key>
+	<string>Atlas needs access to your calendar to help you manage events, time blocks, and sync tasks with your schedule.</string>
+	<key>NSRemindersUsageDescription</key>
+	<string>Atlas needs access to your reminders to help you manage tasks and sync them with your calendar.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Atlas needs access to your photo library to help you attach images to your notes and journal entries.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>Atlas needs access to save photos to your library for journal entries and notes.</string>
 </dict>
 </plist>

@@ -93,10 +93,8 @@ class AnalyticsService: ObservableObject {
         let calendar = Calendar.current
         let today = calendar.startOfDay(for: Date())
         
-        // Notes created today
-        let notesRequest: NSFetchRequest<Note> = Note.fetchRequest()
-        notesRequest.predicate = NSPredicate(format: "createdAt >= %@", today as NSDate)
-        let notesToday = (try? dataManager.coreDataStack.viewContext.fetch(notesRequest))?.count ?? 0
+        // Notes feature removed
+        let notesToday = 0
         
         // Tasks completed today
         let tasksRequest: NSFetchRequest<Task> = Task.fetchRequest()
@@ -108,10 +106,8 @@ class AnalyticsService: ObservableObject {
         journalRequest.predicate = NSPredicate(format: "createdAt >= %@", today as NSDate)
         let journalToday = (try? dataManager.coreDataStack.viewContext.fetch(journalRequest))?.count ?? 0
         
-        // Calculate total words written
-        let allNotesRequest: NSFetchRequest<Note> = Note.fetchRequest()
-        let allNotes = (try? dataManager.coreDataStack.viewContext.fetch(allNotesRequest)) ?? []
-        let totalWords = allNotes.reduce(0) { $0 + ($1.content?.components(separatedBy: .whitespacesAndNewlines).count ?? 0) }
+        // Calculate total words written (notes feature removed)
+        let totalWords = 0
         
         // Calculate productivity score (0-100)
         let productivityScore = calculateProductivityScore(
@@ -149,10 +145,8 @@ class AnalyticsService: ObservableObject {
             let dayStart = calendar.startOfDay(for: date)
             let dayEnd = calendar.date(byAdding: .day, value: 1, to: dayStart) ?? dayStart
             
-            // Notes created
-            let notesRequest: NSFetchRequest<Note> = Note.fetchRequest()
-            notesRequest.predicate = NSPredicate(format: "createdAt >= %@ AND createdAt < %@", dayStart as NSDate, dayEnd as NSDate)
-            let notesCount = (try? dataManager.coreDataStack.viewContext.fetch(notesRequest))?.count ?? 0
+            // Notes feature removed
+            let notesCount = 0
             
             // Tasks completed
             let tasksRequest: NSFetchRequest<Task> = Task.fetchRequest()
@@ -205,31 +199,28 @@ class AnalyticsService: ObservableObject {
     private func loadNoteStatistics() {
         let calendar = Calendar.current
         let now = Date()
-        let weekStart = calendar.dateInterval(of: .weekOfYear, for: now)?.start ?? now
-        let monthStart = calendar.dateInterval(of: .month, for: now)?.start ?? now
+        let _ = calendar.dateInterval(of: .weekOfYear, for: now)?.start ?? now
+        let _ = calendar.dateInterval(of: .month, for: now)?.start ?? now
         
-        let allNotesRequest: NSFetchRequest<Note> = Note.fetchRequest()
-        let allNotes = (try? dataManager.coreDataStack.viewContext.fetch(allNotesRequest)) ?? []
+        // Notes feature removed
+        let notesThisWeek = 0
+        let notesThisMonth = 0
         
-        let notesThisWeek = allNotes.filter { $0.createdAt ?? Date() >= weekStart }.count
-        let notesThisMonth = allNotes.filter { $0.createdAt ?? Date() >= monthStart }.count
+        // Notes feature removed
+        let _ = 0
+        let averageLength = 0.0
         
-        let totalLength = allNotes.reduce(0) { $0 + ($1.content?.count ?? 0) }
-        let averageLength = allNotes.isEmpty ? 0 : Double(totalLength) / Double(allNotes.count)
-        
-        // Find most productive day
-        let dayCounts = Dictionary(grouping: allNotes) { note in
-            calendar.component(.weekday, from: note.createdAt ?? Date())
-        }
+        // Find most productive day (notes feature removed)
+        let dayCounts: [Int: [Any]] = [:]
         let mostProductiveDayNumber = dayCounts.max { $0.value.count < $1.value.count }?.key ?? 1
         let mostProductiveDay = calendar.weekdaySymbols[mostProductiveDayNumber - 1]
         
-        // Count notes with special features
-        let notesWithImages = allNotes.filter { $0.content?.contains("![") == true }.count
-        let notesWithTables = allNotes.filter { $0.content?.contains("|") == true }.count
+        // Count notes with special features (notes feature removed)
+        let notesWithImages = 0
+        let notesWithTables = 0
         
         noteStatistics = NoteStatistics(
-            totalNotes: allNotes.count,
+            totalNotes: 0,
             notesThisWeek: notesThisWeek,
             notesThisMonth: notesThisMonth,
             averageNoteLength: averageLength,
@@ -291,12 +282,10 @@ class AnalyticsService: ObservableObject {
         
         while true {
             let dayStart = currentDate
-            let dayEnd = calendar.date(byAdding: .day, value: 1, to: dayStart) ?? dayStart
+            let _ = calendar.date(byAdding: .day, value: 1, to: dayStart) ?? dayStart
             
-            let request: NSFetchRequest<Note> = Note.fetchRequest()
-            request.predicate = NSPredicate(format: "createdAt >= %@ AND createdAt < %@", dayStart as NSDate, dayEnd as NSDate)
-            
-            let hasActivity = (try? dataManager.coreDataStack.viewContext.fetch(request))?.isEmpty == false
+            // Check for activity on this day
+            let hasActivity = checkActivityForDate(currentDate)
             
             if hasActivity {
                 streak += 1
@@ -307,6 +296,13 @@ class AnalyticsService: ObservableObject {
         }
         
         return streak
+    }
+    
+    private func checkActivityForDate(_ date: Date) -> Bool {
+        // Check for journal entries, tasks, or other activities on this date
+        // For now, return false since notes feature was removed
+        // This can be expanded to check other activity types
+        return false
     }
     
     private func getDominantEmotion(from moodEntries: [MoodEntry]) -> String {
