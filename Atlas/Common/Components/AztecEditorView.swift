@@ -7,6 +7,8 @@ import PhotosUI
 extension Notification.Name {
     static let insertImage = Notification.Name("insertImage")
     static let insertLink = Notification.Name("insertLink")
+    static let selectTextColor = Notification.Name("selectTextColor")
+    static let showFindReplace = Notification.Name("showFindReplace")
 }
 
 // Controller the toolbar can call into
@@ -104,13 +106,25 @@ final class AztecEditorController: ObservableObject {
     
     // MARK: - Text Colors
     func textColor() {
-        // TODO: Implement color picker
-        print("🎨 Text color not yet implemented")
+        // Trigger color picker
+        NotificationCenter.default.post(name: .selectTextColor, object: nil)
     }
     
-    func backgroundColor() {
-        // TODO: Implement background color
-        print("🎨 Background color not yet implemented")
+    func applyTextColor(_ color: UIColor) {
+        guard let textView = textView else { return }
+        
+        let range = textView.selectedRange
+        if range.length > 0 {
+            // Apply color to selected text
+            let mutableString = NSMutableAttributedString(attributedString: textView.attributedText)
+            mutableString.addAttribute(.foregroundColor, value: color, range: range)
+            textView.attributedText = mutableString
+        } else {
+            // Apply color to future typing
+            var attributes = textView.typingAttributes
+            attributes[.foregroundColor] = color
+            textView.typingAttributes = attributes
+        }
     }
     
     // MARK: - Advanced Lists
@@ -153,6 +167,64 @@ final class AztecEditorController: ObservableObject {
         let wordCount = getWordCount()
         let readingTimeMinutes = max(1, wordCount / 200) // Average 200 words per minute
         return "\(readingTimeMinutes) min read"
+    }
+    
+    // MARK: - Find & Replace
+    func findText(_ searchText: String) -> [NSRange] {
+        guard let textView = textView,
+              let text = textView.text,
+              !searchText.isEmpty else { return [] }
+        
+        var ranges: [NSRange] = []
+        let searchString = text as NSString
+        var searchRange = NSRange(location: 0, length: searchString.length)
+        
+        while searchRange.location < searchString.length {
+            let foundRange = searchString.range(of: searchText, options: .caseInsensitive, range: searchRange)
+            if foundRange.location != NSNotFound {
+                ranges.append(foundRange)
+                searchRange = NSRange(location: foundRange.location + foundRange.length, 
+                                    length: searchString.length - (foundRange.location + foundRange.length))
+            } else {
+                break
+            }
+        }
+        
+        return ranges
+    }
+    
+    func replaceText(_ searchText: String, with replacementText: String) -> Int {
+        guard let textView = textView,
+              !searchText.isEmpty else { return 0 }
+        
+        let mutableString = NSMutableAttributedString(attributedString: textView.attributedText)
+        let searchString = mutableString.string as NSString
+        var replacementCount = 0
+        var searchRange = NSRange(location: 0, length: searchString.length)
+        
+        while searchRange.location < searchString.length {
+            let foundRange = searchString.range(of: searchText, options: .caseInsensitive, range: searchRange)
+            if foundRange.location != NSNotFound {
+                mutableString.replaceCharacters(in: foundRange, with: replacementText)
+                replacementCount += 1
+                searchRange = NSRange(location: foundRange.location + replacementText.count, 
+                                    length: mutableString.length - (foundRange.location + replacementText.count))
+            } else {
+                break
+            }
+        }
+        
+        if replacementCount > 0 {
+            textView.attributedText = mutableString
+        }
+        
+        return replacementCount
+    }
+    
+    func selectText(at range: NSRange) {
+        guard let textView = textView else { return }
+        textView.selectedRange = range
+        textView.scrollRangeToVisible(range)
     }
     
     // MARK: - Image Handling

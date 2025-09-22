@@ -21,6 +21,13 @@ struct NotesDetailView: View {
     @State private var showingLinkCreation = false
     @State private var linkURL = ""
     @State private var linkText = ""
+    @State private var showingColorPicker = false
+    @State private var selectedTextColor: UIColor?
+    @State private var showingFindReplace = false
+    @State private var searchText = ""
+    @State private var replaceText = ""
+    @State private var foundRanges: [NSRange] = []
+    @State private var currentMatchIndex = 0
     
     // Aztec Editor Controller
     @StateObject private var editorController = AztecEditorController()
@@ -159,6 +166,50 @@ struct NotesDetailView: View {
         .sheet(isPresented: $showingLinkCreation) {
             LinkCreationView(url: $linkURL, linkText: $linkText)
         }
+        .sheet(isPresented: $showingColorPicker) {
+            TextColorPicker(selectedColor: $selectedTextColor)
+        }
+        .sheet(isPresented: $showingFindReplace) {
+            FindReplaceView(
+                searchText: $searchText,
+                replaceText: $replaceText,
+                foundRanges: $foundRanges,
+                currentMatchIndex: $currentMatchIndex,
+                onFind: {
+                    foundRanges = editorController.findText(searchText)
+                    currentMatchIndex = 0
+                    if !foundRanges.isEmpty {
+                        editorController.selectText(at: foundRanges[0])
+                    }
+                },
+                onReplace: {
+                    if !foundRanges.isEmpty && currentMatchIndex < foundRanges.count {
+                        // Replace single occurrence
+                        let replacementCount = editorController.replaceText(searchText, with: replaceText)
+                        if replacementCount > 0 {
+                            foundRanges = editorController.findText(searchText)
+                            if currentMatchIndex >= foundRanges.count {
+                                currentMatchIndex = max(0, foundRanges.count - 1)
+                            }
+                            if !foundRanges.isEmpty {
+                                editorController.selectText(at: foundRanges[currentMatchIndex])
+                            }
+                        }
+                    }
+                },
+                onReplaceAll: {
+                    let replacementCount = editorController.replaceText(searchText, with: replaceText)
+                    foundRanges = []
+                    currentMatchIndex = 0
+                    print("Replaced \(replacementCount) occurrences")
+                },
+                onSelectMatch: { index in
+                    if index < foundRanges.count {
+                        editorController.selectText(at: foundRanges[index])
+                    }
+                }
+            )
+        }
         .onReceive(NotificationCenter.default.publisher(for: .insertImage)) { _ in
             showingImagePicker = true
         }
@@ -166,6 +217,16 @@ struct NotesDetailView: View {
             linkURL = ""
             linkText = ""
             showingLinkCreation = true
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .selectTextColor)) { _ in
+            showingColorPicker = true
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .showFindReplace)) { _ in
+            searchText = ""
+            replaceText = ""
+            foundRanges = []
+            currentMatchIndex = 0
+            showingFindReplace = true
         }
         .onChange(of: selectedImage) { _, newImage in
             if let image = newImage,
@@ -180,6 +241,12 @@ struct NotesDetailView: View {
                 editorController.insertLinkWithURL(newURL, text: linkText.isEmpty ? nil : linkText)
                 linkURL = ""
                 linkText = ""
+            }
+        }
+        .onChange(of: selectedTextColor) { _, newColor in
+            if let color = newColor {
+                editorController.applyTextColor(color)
+                selectedTextColor = nil // Reset after application
             }
         }
     }

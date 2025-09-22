@@ -2,7 +2,7 @@ import SwiftUI
 
 // MARK: - Toolbar Sections
 enum ToolbarSection: CaseIterable {
-    case formatting, structure, media, colors, lists, history
+    case formatting, structure, media, colors, lists, history, search
     
     var title: String {
         switch self {
@@ -12,6 +12,7 @@ enum ToolbarSection: CaseIterable {
         case .colors: return "Colors"
         case .lists: return "Lists"
         case .history: return "History"
+        case .search: return "Search"
         }
     }
     
@@ -23,6 +24,7 @@ enum ToolbarSection: CaseIterable {
         case .colors: return "paintpalette"
         case .lists: return "list.bullet"
         case .history: return "arrow.uturn.backward"
+        case .search: return "magnifyingglass"
         }
     }
 }
@@ -101,6 +103,7 @@ struct EditorToolbar: View {
             sectionTab(.colors)
             sectionTab(.lists)
             sectionTab(.history)
+            sectionTab(.search)
         }
         .padding(.horizontal, 16)
         .padding(.bottom, 12)
@@ -141,6 +144,8 @@ struct EditorToolbar: View {
                     listsSection
                 case .history:
                     historySection
+                case .search:
+                    searchSection
                 }
             }
             .padding(.horizontal, 16)
@@ -216,7 +221,6 @@ struct EditorToolbar: View {
     private var colorsSection: some View {
         HStack(spacing: 8) {
             modernFormatButton(icon: "textformat.abc", action: { controller.textColor(); controller.focus() })
-            modernFormatButton(icon: "paintbrush", action: { controller.backgroundColor(); controller.focus() })
         }
     }
     
@@ -233,6 +237,15 @@ struct EditorToolbar: View {
         HStack(spacing: 8) {
             modernFormatButton(icon: "arrow.uturn.backward", action: { controller.undo(); controller.focus() })
             modernFormatButton(icon: "arrow.uturn.forward", action: { controller.redo(); controller.focus() })
+        }
+    }
+    
+    private var searchSection: some View {
+        HStack(spacing: 8) {
+            modernFormatButton(icon: "magnifyingglass", action: { 
+                NotificationCenter.default.post(name: .showFindReplace, object: nil)
+                controller.focus() 
+            })
         }
     }
     
