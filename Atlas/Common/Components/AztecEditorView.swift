@@ -7,7 +7,7 @@ import Aztec
 final class AztecEditorController: ObservableObject {
     weak var textView: Aztec.TextView?
     
-    // Text Formatting
+    // MARK: - Text Formatting
     func bold()      { textView?.toggleBoldface(nil) }
     func italic()    { textView?.toggleItalics(nil) }
     func underline() { textView?.toggleUnderline(nil) }
@@ -17,7 +17,7 @@ final class AztecEditorController: ObservableObject {
         textView.toggleStrikethrough(range: range)
     }
     
-    // Lists
+    // MARK: - Lists
     func bulletList() { 
         guard let textView = textView else { return }
         let range = textView.selectedRange
@@ -29,7 +29,7 @@ final class AztecEditorController: ObservableObject {
         textView.toggleOrderedList(range: range)
     }
     
-    // Headers
+    // MARK: - Headers
     func header1() { 
         guard let textView = textView else { return }
         let range = textView.selectedRange
@@ -46,7 +46,7 @@ final class AztecEditorController: ObservableObject {
         textView.toggleHeader(.h3, range: range)
     }
     
-    // Other
+    // MARK: - Advanced Formatting
     func quote() { 
         guard let textView = textView else { return }
         let range = textView.selectedRange
@@ -57,6 +57,55 @@ final class AztecEditorController: ObservableObject {
         let range = textView.selectedRange
         textView.toggleCode(range: range)
     }
+    
+    // MARK: - Media & Content
+    func insertImage() {
+        // TODO: Implement image picker
+        print("🖼️ Image insertion not yet implemented")
+    }
+    
+    func insertHorizontalRule() {
+        guard let textView = textView else { return }
+        textView.insertText("\n---\n")
+    }
+    
+    // MARK: - Links
+    func insertLink() {
+        // TODO: Implement link insertion
+        print("🔗 Link insertion not yet implemented")
+    }
+    
+    // MARK: - Text Colors
+    func textColor() {
+        // TODO: Implement color picker
+        print("🎨 Text color not yet implemented")
+    }
+    
+    func backgroundColor() {
+        // TODO: Implement background color
+        print("🎨 Background color not yet implemented")
+    }
+    
+    // MARK: - Advanced Lists
+    func indentList() {
+        // TODO: Implement list indentation
+        print("📋 List indent not yet implemented")
+    }
+    
+    func outdentList() {
+        // TODO: Implement list outdentation
+        print("📋 List outdent not yet implemented")
+    }
+    
+    // MARK: - History & Navigation
+    func undo() {
+        textView?.undoManager?.undo()
+    }
+    
+    func redo() {
+        textView?.undoManager?.redo()
+    }
+    
     func focus() { textView?.becomeFirstResponder() }
 }
 
