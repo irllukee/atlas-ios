@@ -8,7 +8,7 @@ struct NotesDetailView: View {
     @Environment(\.dismiss) private var dismiss
     
     @State private var title: String = ""
-    @State private var content: String = ""
+    @State private var html: String = "<p></p>"
     @State private var isFavorite: Bool = false
     @State private var selectedFolder: NoteFolder?
     @State private var selectedTags: Set<NoteTag> = []
@@ -17,27 +17,44 @@ struct NotesDetailView: View {
     @State private var showingDeleteConfirmation = false
     @State private var hasUnsavedChanges = false
     
+    // Aztec Editor Controller
+    @StateObject private var editorController = AztecEditorController()
+    
     // Auto-save
     @State private var autoSaveTimer: Timer?
     private let autoSaveInterval: TimeInterval = 2.0
     
     var body: some View {
         NavigationView {
-            VStack(spacing: 0) {
-                // Unified Rich Text Editor (Aztec + Fallback)
-                UnifiedRichTextEditor(
-                    content: $content,
-                    title: $title,
-                    placeholder: ""
-                )
-                .onChange(of: content) { _, _ in
-                    hasUnsavedChanges = true
-                    scheduleAutoSave()
-                }
-                .onChange(of: title) { _, _ in
-                    hasUnsavedChanges = true
-                    scheduleAutoSave()
-                }
+            VStack(spacing: 12) {
+                // Title Field
+                AtlasTextField("Title", placeholder: "Note Title", text: $title, style: .floating)
+                    .padding(.horizontal, AtlasTheme.Spacing.md)
+                    .onChange(of: title) { _, _ in
+                        hasUnsavedChanges = true
+                        scheduleAutoSave()
+                    }
+                
+                // Aztec Editor
+                AztecEditorView(html: $html, controller: editorController, placeholder: "")
+                    .frame(minHeight: 300)
+                    .background(
+                        RoundedRectangle(cornerRadius: AtlasTheme.CornerRadius.medium)
+                            .fill(AtlasTheme.Colors.glassBackground)
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: AtlasTheme.CornerRadius.medium)
+                            .stroke(AtlasTheme.Colors.glassBorder, lineWidth: 1)
+                    )
+                    .padding(.horizontal, AtlasTheme.Spacing.md)
+                    .onChange(of: html) { _, _ in
+                        hasUnsavedChanges = true
+                        scheduleAutoSave()
+                    }
+                
+                // Editor Toolbar
+                EditorToolbar(controller: editorController)
+                    .padding(.horizontal, AtlasTheme.Spacing.md)
                 
                 // Metadata Bar
                 metadataBar
@@ -204,13 +221,18 @@ struct NotesDetailView: View {
     private func setupNote() {
         if let note = note {
             title = note.title ?? ""
-            content = note.content ?? ""
+            // Convert content to HTML if it exists, otherwise use empty paragraph
+            if let content = note.content, !content.isEmpty {
+                html = content
+            } else {
+                html = "<p></p>"
+            }
             isFavorite = note.isFavorite
             selectedFolder = note.folder
             selectedTags = Set(note.tags?.allObjects as? [NoteTag] ?? [])
         } else {
             title = ""
-            content = ""
+            html = "<p></p>"
             isFavorite = false
             selectedFolder = nil
             selectedTags = []
@@ -266,7 +288,7 @@ struct NotesDetailView: View {
     private func saveNote() {
         if let note = note {
             // Update existing note
-            notesService.updateNote(note, title: title, content: content)
+            notesService.updateNote(note, title: title, content: html)
             note.isFavorite = isFavorite
             note.folder = selectedFolder
             
@@ -274,7 +296,7 @@ struct NotesDetailView: View {
             note.tags = NSSet(set: selectedTags)
         } else {
             // Create new note
-            let newNote = notesService.createNote(title: title, content: content, folder: selectedFolder)
+            let newNote = notesService.createNote(title: title, content: html, folder: selectedFolder)
             newNote.isFavorite = isFavorite
             newNote.tags = NSSet(set: selectedTags)
         }

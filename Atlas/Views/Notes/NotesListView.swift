@@ -11,7 +11,6 @@ struct NotesListView: View {
     @State private var searchText = ""
     @State private var viewMode: ViewMode = .list
     @State private var sortOption: SortOption = .updatedAt
-    @State private var showingTestAlert = false
     
     enum ViewMode: CaseIterable {
         case list, grid
@@ -79,11 +78,6 @@ struct NotesListView: View {
                 NotesDetailView(note: note)
             }
         }
-        .alert("Test Alert", isPresented: $showingTestAlert) {
-            Button("OK") { }
-        } message: {
-            Text("Plus button is working!")
-        }
         .onAppear {
             notesService.loadData()
         }
@@ -139,8 +133,8 @@ struct NotesListView: View {
                 // New Note Button
                 Button(action: {
                     print("🔧 DEBUG: Plus button in header tapped")
-                    showingTestAlert = true
-                    print("🔧 DEBUG: showingTestAlert set to: \(showingTestAlert)")
+                    showingNewNote = true
+                    print("🔧 DEBUG: showingNewNote set to: \(showingNewNote)")
                     AtlasTheme.Haptics.medium()
                 }) {
                     Image(systemName: "plus")

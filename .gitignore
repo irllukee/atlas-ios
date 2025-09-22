@@ -10,16 +10,24 @@
 *.perspectivev3
 !default.perspectivev3
 xcuserdata/
-profile
 *.moved-aside
-DerivedData/
-.idea/
-*.hmap
 *.xccheckout
-*.xcworkspace
+*.xcscmblueprint
+
+# Build artifacts
+.build/
+DerivedData/
+*.ipa
+*.dSYM.zip
+*.dSYM
+
+# Swift Package Manager
+.swiftpm/
+Package.resolved
 
 # CocoaPods
 Pods/
+*.xcworkspace
 
 # Carthage
 Carthage/Build/
@@ -32,28 +40,3 @@ fastlane/test_output
 
 # Code Injection
 iOSInjectionProject/
-
-# Logs
-logs
-*.log
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-dev-debug.log
-# Dependency directories
-node_modules/
-# Environment variables
-.env
-# Editor directories and files
-.idea
-.vscode
-*.suo
-*.ntvs*
-*.njsproj
-*.sln
-*.sw?
-# OS specific
-
-# Task files
-# tasks.json
-# tasks/ 
