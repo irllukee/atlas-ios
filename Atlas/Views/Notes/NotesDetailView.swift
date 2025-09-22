@@ -140,6 +140,8 @@ struct NotesDetailView: View {
         .navigationViewStyle(StackNavigationViewStyle())
         .onAppear {
             print("🔧 DEBUG: NotesDetailView appeared - note: \(note?.title ?? "nil (new note)")")
+            print("🔧 DEBUG: Initial title: '\(title)'")
+            print("🔧 DEBUG: Initial html: '\(html)'")
             setupNote()
             startAutoSave()
         }
@@ -349,12 +351,14 @@ struct NotesDetailView: View {
             isFavorite = note.isFavorite
             selectedFolder = note.folder
             selectedTags = Set(note.tags?.allObjects as? [NoteTag] ?? [])
+            print("🔧 DEBUG: Setup existing note - title: '\(title)', html: '\(html)'")
         } else {
             title = ""
             html = "<p></p>"
             isFavorite = false
             selectedFolder = nil
             selectedTags = []
+            print("🔧 DEBUG: Setup new note - title: '\(title)', html: '\(html)'")
         }
     }
     
@@ -405,9 +409,12 @@ struct NotesDetailView: View {
     }
     
     private func saveNote() {
+        // Derive clean title from content if title is empty or contains HTML
+        let cleanTitle = deriveCleanTitle(from: title, content: html)
+        
         if let note = note {
             // Update existing note
-            notesService.updateNote(note, title: title, content: html)
+            notesService.updateNote(note, title: cleanTitle, content: html)
             note.isFavorite = isFavorite
             note.folder = selectedFolder
             
@@ -415,13 +422,50 @@ struct NotesDetailView: View {
             note.tags = NSSet(set: selectedTags)
         } else {
             // Create new note
-            let newNote = notesService.createNote(title: title, content: html, folder: selectedFolder)
+            let newNote = notesService.createNote(title: cleanTitle, content: html, folder: selectedFolder)
             newNote.isFavorite = isFavorite
             newNote.tags = NSSet(set: selectedTags)
         }
         
         hasUnsavedChanges = false
         notesService.saveContext()
+    }
+    
+    // MARK: - Title Derivation
+    private func deriveCleanTitle(from title: String, content: String) -> String {
+        // If we have a clean title, use it
+        if !title.isEmpty && !title.contains("<!DOCTYPE") && !title.contains("<") {
+            return title
+        }
+        
+        // Otherwise derive from content
+        if !content.isEmpty {
+            let plainText = stripHTML(from: content)
+            let lines = plainText.components(separatedBy: .newlines)
+            for line in lines {
+                let trimmed = line.trimmingCharacters(in: .whitespacesAndNewlines)
+                if !trimmed.isEmpty {
+                    return trimmed
+                }
+            }
+        }
+        
+        return "Untitled Note"
+    }
+    
+    private func stripHTML(from html: String) -> String {
+        // Remove DOCTYPE and HTML tags
+        let cleanHTML = html
+            .replacingOccurrences(of: "<!DOCTYPE[^>]*>", with: "", options: .regularExpression)
+            .replacingOccurrences(of: "<[^>]+>", with: "", options: .regularExpression)
+            .replacingOccurrences(of: "&nbsp;", with: " ")
+            .replacingOccurrences(of: "&amp;", with: "&")
+            .replacingOccurrences(of: "&lt;", with: "<")
+            .replacingOccurrences(of: "&gt;", with: ">")
+            .replacingOccurrences(of: "&quot;", with: "\"")
+            .replacingOccurrences(of: "&#39;", with: "'")
+        
+        return cleanHTML
     }
 }
 

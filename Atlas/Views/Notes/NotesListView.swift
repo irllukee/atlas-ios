@@ -9,19 +9,13 @@ struct NotesListView: View {
     @State private var showingTagManagement = false
     @State private var selectedNote: Note?
     @State private var searchText = ""
-    @State private var viewMode: ViewMode = .list
     @State private var sortOption: SortOption = .updatedAt
     
-    enum ViewMode: CaseIterable {
-        case list, grid
-        
-        var icon: String {
-            switch self {
-            case .list: return "list.bullet"
-            case .grid: return "square.grid.2x2"
-            }
-        }
-    }
+    // Selection state
+    @State private var isSelectionMode = false
+    @State private var selectedNotes: Set<Note> = []
+    @State private var showingMoveToFolder = false
+    @State private var showingDeleteConfirmation = false
     
     enum SortOption: String, CaseIterable {
         case updatedAt = "Last Updated"
@@ -61,10 +55,10 @@ struct NotesListView: View {
             .navigationBarHidden(true)
         }
         .navigationViewStyle(StackNavigationViewStyle())
-        .sheet(isPresented: $showingNewNote) {
+        .fullScreenCover(isPresented: $showingNewNote) {
             NotesDetailView(note: nil)
                 .onAppear {
-                    print("🔧 DEBUG: NotesDetailView sheet appeared")
+                    print("🔧 DEBUG: NotesDetailView fullscreen appeared")
                 }
         }
         .sheet(isPresented: $showingFolderManagement) {
@@ -73,7 +67,7 @@ struct NotesListView: View {
         .sheet(isPresented: $showingTagManagement) {
             TagManagementView()
         }
-        .sheet(isPresented: $showingNoteDetail) {
+        .fullScreenCover(isPresented: $showingNoteDetail) {
             if let note = selectedNote {
                 NotesDetailView(note: note)
             }
@@ -83,6 +77,17 @@ struct NotesListView: View {
         }
         .onChange(of: searchText) { _, newValue in
             notesService.searchText = newValue
+        }
+        .alert("Delete Selected Notes", isPresented: $showingDeleteConfirmation) {
+            Button("Cancel", role: .cancel) { }
+            Button("Delete", role: .destructive) {
+                deleteSelectedNotes()
+            }
+        } message: {
+            Text("Are you sure you want to delete \(selectedNotes.count) note(s)? This action cannot be undone.")
+        }
+        .sheet(isPresented: $showingMoveToFolder) {
+            MoveToFolderView(selectedNotes: Array(selectedNotes))
         }
     }
     
@@ -94,33 +99,114 @@ struct NotesListView: View {
                     .font(AtlasTheme.Typography.largeTitle)
                     .foregroundColor(AtlasTheme.Colors.text)
                 
-                Text("\(notesService.notes.count) notes")
-                    .font(AtlasTheme.Typography.caption)
-                    .foregroundColor(AtlasTheme.Colors.tertiaryText)
+                if isSelectionMode {
+                    Text("\(selectedNotes.count) selected")
+                        .font(AtlasTheme.Typography.caption)
+                        .foregroundColor(AtlasTheme.Colors.primary)
+                } else {
+                    Text("\(notesService.notes.count) notes")
+                        .font(AtlasTheme.Typography.caption)
+                        .foregroundColor(AtlasTheme.Colors.tertiaryText)
+                }
             }
             
             Spacer()
             
             HStack(spacing: AtlasTheme.Spacing.sm) {
-                // View Mode Toggle
+                if isSelectionMode {
+                    // Selection mode controls
+                    selectionModeControls
+                } else {
+                    // Normal mode controls
+                    normalModeControls
+                }
+            }
+        }
+        .padding(.horizontal, AtlasTheme.Spacing.md)
+        .padding(.top, AtlasTheme.Spacing.sm)
+    }
+    
+    // MARK: - Normal Mode Controls
+    private var normalModeControls: some View {
+        HStack(spacing: AtlasTheme.Spacing.sm) {
+            // Selection Button
+            Button(action: {
+                isSelectionMode = true
+                AtlasTheme.Haptics.light()
+            }) {
+                Image(systemName: "checkmark.circle")
+                    .font(.system(size: 18, weight: .medium))
+                    .foregroundColor(AtlasTheme.Colors.text)
+                    .frame(width: 40, height: 40)
+                    .background(
+                        Circle()
+                            .fill(AtlasTheme.Colors.glassBackground)
+                    )
+            }
+            .buttonStyle(PlainButtonStyle())
+            .contentShape(Circle())
+            
+            // New Note Button
+            Button(action: {
+                print("🔧 DEBUG: Plus button in header tapped")
+                showingNewNote = true
+                print("🔧 DEBUG: showingNewNote set to: \(showingNewNote)")
+                AtlasTheme.Haptics.medium()
+            }) {
+                Image(systemName: "plus")
+                    .font(.system(size: 18, weight: .medium))
+                    .foregroundColor(.white)
+                    .frame(width: 40, height: 40)
+                    .background(
+                        Circle()
+                            .fill(AtlasTheme.Colors.primary)
+                    )
+            }
+            .buttonStyle(PlainButtonStyle())
+            .contentShape(Circle())
+        }
+    }
+    
+    // MARK: - Selection Mode Controls
+    private var selectionModeControls: some View {
+        HStack(spacing: AtlasTheme.Spacing.sm) {
+            // Cancel Selection
+            Button(action: {
+                isSelectionMode = false
+                selectedNotes.removeAll()
+                AtlasTheme.Haptics.light()
+            }) {
+                Text("Cancel")
+                    .font(AtlasTheme.Typography.button)
+                    .foregroundColor(AtlasTheme.Colors.text)
+            }
+            
+            // Select All
+            Button(action: {
+                if selectedNotes.count == sortedNotes.count {
+                    selectedNotes.removeAll()
+                } else {
+                    selectedNotes = Set(sortedNotes)
+                }
+                AtlasTheme.Haptics.light()
+            }) {
+                Text(selectedNotes.count == sortedNotes.count ? "Deselect All" : "Select All")
+                    .font(AtlasTheme.Typography.button)
+                    .foregroundColor(AtlasTheme.Colors.primary)
+            }
+            
+            // Actions Menu
+            if !selectedNotes.isEmpty {
                 Menu {
-                    ForEach(ViewMode.allCases, id: \.self) { mode in
-                        Button(action: {
-                            viewMode = mode
-                            AtlasTheme.Haptics.light()
-                        }) {
-                            HStack {
-                                Image(systemName: mode.icon)
-                                Text(mode == .list ? "List View" : "Grid View")
-                                if viewMode == mode {
-                                    Spacer()
-                                    Image(systemName: "checkmark")
-                                }
-                            }
-                        }
+                    Button("Move to Folder") {
+                        showingMoveToFolder = true
+                    }
+                    
+                    Button("Delete Selected", role: .destructive) {
+                        showingDeleteConfirmation = true
                     }
                 } label: {
-                    Image(systemName: viewMode.icon)
+                    Image(systemName: "ellipsis.circle")
                         .font(.system(size: 18, weight: .medium))
                         .foregroundColor(AtlasTheme.Colors.text)
                         .frame(width: 40, height: 40)
@@ -129,29 +215,8 @@ struct NotesListView: View {
                                 .fill(AtlasTheme.Colors.glassBackground)
                         )
                 }
-                
-                // New Note Button
-                Button(action: {
-                    print("🔧 DEBUG: Plus button in header tapped")
-                    showingNewNote = true
-                    print("🔧 DEBUG: showingNewNote set to: \(showingNewNote)")
-                    AtlasTheme.Haptics.medium()
-                }) {
-                    Image(systemName: "plus")
-                        .font(.system(size: 18, weight: .medium))
-                        .foregroundColor(.white)
-                        .frame(width: 40, height: 40)
-                        .background(
-                            Circle()
-                                .fill(AtlasTheme.Colors.primary)
-                        )
-                }
-                .buttonStyle(PlainButtonStyle())
-                .contentShape(Circle())
             }
         }
-        .padding(.horizontal, AtlasTheme.Spacing.md)
-        .padding(.top, AtlasTheme.Spacing.sm)
     }
     
     // MARK: - Search and Filters View
@@ -289,15 +354,32 @@ struct NotesListView: View {
         ScrollView {
             LazyVStack(spacing: AtlasTheme.Spacing.sm) {
                 ForEach(sortedNotes, id: \.uuid) { note in
-                    NoteCardView(note: note, viewMode: viewMode) {
-                        selectedNote = note
-                        showingNoteDetail = true
-                        AtlasTheme.Haptics.light()
+                    NoteCardView(
+                        note: note,
+                        isSelected: selectedNotes.contains(note),
+                        isSelectionMode: isSelectionMode
+                    ) {
+                        if isSelectionMode {
+                            // Toggle selection
+                            if selectedNotes.contains(note) {
+                                selectedNotes.remove(note)
+                            } else {
+                                selectedNotes.insert(note)
+                            }
+                            AtlasTheme.Haptics.light()
+                        } else {
+                            // Open note
+                            selectedNote = note
+                            showingNoteDetail = true
+                            AtlasTheme.Haptics.light()
+                        }
                     }
                     .onLongPressGesture(minimumDuration: 0.5) {
-                        // Hold to delete
-                        notesService.deleteNote(note)
-                        AtlasTheme.Haptics.success()
+                        if !isSelectionMode {
+                            // Hold to delete (only in normal mode)
+                            notesService.deleteNote(note)
+                            AtlasTheme.Haptics.success()
+                        }
                     }
                 }
             }
@@ -380,6 +462,16 @@ struct NotesListView: View {
         )
     }
     
+    // MARK: - Actions
+    private func deleteSelectedNotes() {
+        for note in selectedNotes {
+            notesService.deleteNote(note)
+        }
+        selectedNotes.removeAll()
+        isSelectionMode = false
+        AtlasTheme.Haptics.success()
+    }
+    
     // MARK: - Computed Properties
     private var sortedNotes: [Note] {
         let filtered = notesService.filteredNotes
@@ -403,18 +495,15 @@ struct NotesListView: View {
 // MARK: - Note Card View
 struct NoteCardView: View {
     let note: Note
-    let viewMode: NotesListView.ViewMode
+    let isSelected: Bool
+    let isSelectionMode: Bool
     let onTap: () -> Void
     
     var body: some View {
         Button(action: {
             onTap()
         }) {
-            if viewMode == .list {
-                listCardView
-            } else {
-                gridCardView
-            }
+            listCardView
         }
         .buttonStyle(PlainButtonStyle())
         .contentShape(Rectangle())
@@ -422,16 +511,23 @@ struct NoteCardView: View {
     
     private var listCardView: some View {
         HStack(spacing: AtlasTheme.Spacing.md) {
-            // Note Icon
-            Image(systemName: noteIcon)
-                .font(.system(size: 20, weight: .medium))
-                .foregroundColor(noteColor)
-                .frame(width: 24, height: 24)
+            // Selection indicator or Note Icon
+            if isSelectionMode {
+                Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
+                    .font(.system(size: 20, weight: .medium))
+                    .foregroundColor(isSelected ? AtlasTheme.Colors.primary : AtlasTheme.Colors.tertiaryText)
+                    .frame(width: 24, height: 24)
+            } else {
+                Image(systemName: noteIcon)
+                    .font(.system(size: 20, weight: .medium))
+                    .foregroundColor(noteColor)
+                    .frame(width: 24, height: 24)
+            }
             
             // Content
             VStack(alignment: .leading, spacing: 4) {
                 HStack {
-                    Text(note.title ?? "Untitled Note")
+                    Text(plainTextTitle(from: note.title, content: note.content))
                         .font(AtlasTheme.Typography.headline)
                         .foregroundColor(AtlasTheme.Colors.text)
                         .lineLimit(1)
@@ -446,7 +542,7 @@ struct NoteCardView: View {
                 }
                 
                 if let content = note.content, !content.isEmpty {
-                    Text(content)
+                    Text(plainTextPreview(from: content))
                         .font(AtlasTheme.Typography.body)
                         .foregroundColor(AtlasTheme.Colors.secondaryText)
                         .lineLimit(2)
@@ -482,62 +578,6 @@ struct NoteCardView: View {
         )
     }
     
-    private var gridCardView: some View {
-        VStack(alignment: .leading, spacing: AtlasTheme.Spacing.sm) {
-            // Header
-            HStack {
-                Image(systemName: noteIcon)
-                    .font(.system(size: 16, weight: .medium))
-                    .foregroundColor(noteColor)
-                
-                Spacer()
-                
-                if note.isFavorite {
-                    Image(systemName: "star.fill")
-                        .font(.system(size: 12))
-                        .foregroundColor(AtlasTheme.Colors.warning)
-                }
-            }
-            
-            // Title
-            Text(note.title ?? "Untitled Note")
-                .font(AtlasTheme.Typography.headline)
-                .foregroundColor(AtlasTheme.Colors.text)
-                .lineLimit(2)
-            
-            // Content Preview
-            if let content = note.content, !content.isEmpty {
-                Text(content)
-                    .font(AtlasTheme.Typography.caption)
-                    .foregroundColor(AtlasTheme.Colors.secondaryText)
-                    .lineLimit(3)
-            }
-            
-            Spacer()
-            
-            // Footer
-            VStack(alignment: .leading, spacing: 4) {
-                if let folder = note.folder {
-                    folderTag(name: folder.name ?? "Folder", color: folder.color ?? "#FF6B35")
-                }
-                
-                Text(formatDate(note.updatedAt ?? note.createdAt ?? Date()))
-                    .font(AtlasTheme.Typography.caption2)
-                    .foregroundColor(AtlasTheme.Colors.tertiaryText)
-            }
-        }
-        .padding(AtlasTheme.Spacing.md)
-        .frame(height: 140)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(
-            RoundedRectangle(cornerRadius: AtlasTheme.CornerRadius.medium)
-                .fill(AtlasTheme.Colors.glassBackground)
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: AtlasTheme.CornerRadius.medium)
-                .stroke(AtlasTheme.Colors.glassBorder, lineWidth: 1)
-        )
-    }
     
     private func folderTag(name: String, color: String) -> some View {
         Text(name)
@@ -597,8 +637,120 @@ struct NoteCardView: View {
             return formatter.string(from: date)
         }
     }
+    
+    // MARK: - Plain Text Helpers
+    private func plainTextTitle(from title: String?, content: String?) -> String {
+        // If we have a clean title, use it
+        if let title = title, !title.isEmpty, !title.contains("<!DOCTYPE") {
+            return title
+        }
+        
+        // Otherwise derive from content
+        if let content = content, !content.isEmpty {
+            let plainText = stripHTML(from: content)
+            let lines = plainText.components(separatedBy: .newlines)
+            for line in lines {
+                let trimmed = line.trimmingCharacters(in: .whitespacesAndNewlines)
+                if !trimmed.isEmpty {
+                    return trimmed
+                }
+            }
+        }
+        
+        return "Untitled Note"
+    }
+    
+    private func plainTextPreview(from content: String) -> String {
+        let plainText = stripHTML(from: content)
+        return preview(fromPlainText: plainText, limit: 140)
+    }
+    
+    private func stripHTML(from html: String) -> String {
+        // Remove DOCTYPE and HTML tags
+        let cleanHTML = html
+            .replacingOccurrences(of: "<!DOCTYPE[^>]*>", with: "", options: .regularExpression)
+            .replacingOccurrences(of: "<[^>]+>", with: "", options: .regularExpression)
+            .replacingOccurrences(of: "&nbsp;", with: " ")
+            .replacingOccurrences(of: "&amp;", with: "&")
+            .replacingOccurrences(of: "&lt;", with: "<")
+            .replacingOccurrences(of: "&gt;", with: ">")
+            .replacingOccurrences(of: "&quot;", with: "\"")
+            .replacingOccurrences(of: "&#39;", with: "'")
+        
+        return cleanHTML
+    }
+    
+    private func preview(fromPlainText text: String, limit: Int = 140) -> String {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        let collapsed = trimmed.replacingOccurrences(of: "\\s+", with: " ", options: .regularExpression)
+        
+        if collapsed.count <= limit {
+            return collapsed
+        } else {
+            let index = collapsed.index(collapsed.startIndex, offsetBy: limit)
+            return String(collapsed[..<index]) + "..."
+        }
+    }
 }
 
+
+// MARK: - Move to Folder View
+struct MoveToFolderView: View {
+    let selectedNotes: [Note]
+    @StateObject private var notesService = NotesService.shared
+    @Environment(\.dismiss) private var dismiss
+    @State private var selectedFolder: NoteFolder?
+    
+    var body: some View {
+        NavigationView {
+            List {
+                Section {
+                    Button("No Folder") {
+                        moveNotesToFolder(nil)
+                    }
+                    .foregroundColor(AtlasTheme.Colors.text)
+                }
+                
+                Section("Folders") {
+                    ForEach(notesService.folders, id: \.uuid) { folder in
+                        Button(action: {
+                            moveNotesToFolder(folder)
+                        }) {
+                            HStack {
+                                Circle()
+                                    .fill(Color(hex: folder.color ?? "#007AFF") ?? AtlasTheme.Colors.primary)
+                                    .frame(width: 12, height: 12)
+                                
+                                Text(folder.name ?? "Unnamed Folder")
+                                    .foregroundColor(AtlasTheme.Colors.text)
+                                
+                                Spacer()
+                            }
+                        }
+                    }
+                }
+            }
+            .navigationTitle("Move to Folder")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("Cancel") {
+                        dismiss()
+                    }
+                }
+            }
+        }
+    }
+    
+    private func moveNotesToFolder(_ folder: NoteFolder?) {
+        for note in selectedNotes {
+            note.folder = folder
+        }
+        notesService.saveContext()
+        AtlasTheme.Haptics.success()
+        dismiss()
+    }
+}
 
 // MARK: - Preview
 #Preview {
