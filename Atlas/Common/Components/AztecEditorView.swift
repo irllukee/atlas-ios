@@ -6,10 +6,58 @@ import Aztec
 @MainActor
 final class AztecEditorController: ObservableObject {
     weak var textView: Aztec.TextView?
+    
+    // Text Formatting
     func bold()      { textView?.toggleBoldface(nil) }
     func italic()    { textView?.toggleItalics(nil) }
     func underline() { textView?.toggleUnderline(nil) }
-    func focus()     { textView?.becomeFirstResponder() }
+    func strikethrough() { 
+        guard let textView = textView else { return }
+        let range = textView.selectedRange
+        textView.toggleStrikethrough(range: range)
+    }
+    
+    // Lists
+    func bulletList() { 
+        guard let textView = textView else { return }
+        let range = textView.selectedRange
+        textView.toggleUnorderedList(range: range)
+    }
+    func numberedList() { 
+        guard let textView = textView else { return }
+        let range = textView.selectedRange
+        textView.toggleOrderedList(range: range)
+    }
+    
+    // Headers
+    func header1() { 
+        guard let textView = textView else { return }
+        let range = textView.selectedRange
+        textView.toggleHeader(.h1, range: range)
+    }
+    func header2() { 
+        guard let textView = textView else { return }
+        let range = textView.selectedRange
+        textView.toggleHeader(.h2, range: range)
+    }
+    func header3() { 
+        guard let textView = textView else { return }
+        let range = textView.selectedRange
+        textView.toggleHeader(.h3, range: range)
+    }
+    
+    // Other
+    func quote() { 
+        guard let textView = textView else { return }
+        let range = textView.selectedRange
+        textView.toggleBlockquote(range: range)
+    }
+    func code() { 
+        guard let textView = textView else { return }
+        let range = textView.selectedRange
+        textView.toggleCode(range: range)
+    }
+    func focus() { textView?.becomeFirstResponder() }
 }
 
 struct AztecEditorView: UIViewRepresentable {

@@ -26,38 +26,41 @@ struct NotesDetailView: View {
     
     var body: some View {
         NavigationView {
-            VStack(spacing: 12) {
-                // Title Field
-                AtlasTextField("Title", placeholder: "Note Title", text: $title, style: .floating)
-                    .padding(.horizontal, AtlasTheme.Spacing.md)
-                    .onChange(of: title) { _, _ in
-                        hasUnsavedChanges = true
-                        scheduleAutoSave()
-                    }
+            ZStack {
+                VStack(spacing: 12) {
+                    // Title Field
+                    AtlasTextField("Title", placeholder: "Note Title", text: $title, style: .floating)
+                        .padding(.horizontal, AtlasTheme.Spacing.md)
+                        .onChange(of: title) { _, _ in
+                            hasUnsavedChanges = true
+                            scheduleAutoSave()
+                        }
+                    
+                    // Aztec Editor
+                    AztecEditorView(html: $html, controller: editorController, placeholder: "")
+                        .frame(minHeight: 300)
+                        .background(
+                            RoundedRectangle(cornerRadius: AtlasTheme.CornerRadius.medium)
+                                .fill(AtlasTheme.Colors.glassBackground)
+                        )
+                        .overlay(
+                            RoundedRectangle(cornerRadius: AtlasTheme.CornerRadius.medium)
+                                .stroke(AtlasTheme.Colors.glassBorder, lineWidth: 1)
+                        )
+                        .padding(.horizontal, AtlasTheme.Spacing.md)
+                        .onChange(of: html) { _, _ in
+                            hasUnsavedChanges = true
+                            scheduleAutoSave()
+                        }
+                    
+                    // Metadata Bar
+                    metadataBar
+                    
+                    Spacer()
+                }
                 
-                // Aztec Editor
-                AztecEditorView(html: $html, controller: editorController, placeholder: "")
-                    .frame(minHeight: 300)
-                    .background(
-                        RoundedRectangle(cornerRadius: AtlasTheme.CornerRadius.medium)
-                            .fill(AtlasTheme.Colors.glassBackground)
-                    )
-                    .overlay(
-                        RoundedRectangle(cornerRadius: AtlasTheme.CornerRadius.medium)
-                            .stroke(AtlasTheme.Colors.glassBorder, lineWidth: 1)
-                    )
-                    .padding(.horizontal, AtlasTheme.Spacing.md)
-                    .onChange(of: html) { _, _ in
-                        hasUnsavedChanges = true
-                        scheduleAutoSave()
-                    }
-                
-                // Editor Toolbar
+                // Floating Editor Toolbar (appears over keyboard)
                 EditorToolbar(controller: editorController)
-                    .padding(.horizontal, AtlasTheme.Spacing.md)
-                
-                // Metadata Bar
-                metadataBar
             }
             .background(AtlasTheme.Colors.background)
             .navigationBarTitleDisplayMode(.inline)
