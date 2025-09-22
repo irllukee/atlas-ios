@@ -1,6 +1,13 @@
 import SwiftUI
 import UIKit
 import Aztec
+import PhotosUI
+
+// MARK: - Notification Names
+extension Notification.Name {
+    static let insertImage = Notification.Name("insertImage")
+    static let insertLink = Notification.Name("insertLink")
+}
 
 // Controller the toolbar can call into
 @MainActor
@@ -60,8 +67,8 @@ final class AztecEditorController: ObservableObject {
     
     // MARK: - Media & Content
     func insertImage() {
-        // TODO: Implement image picker
-        print("🖼️ Image insertion not yet implemented")
+        // Trigger image picker
+        NotificationCenter.default.post(name: .insertImage, object: nil)
     }
     
     func insertHorizontalRule() {
@@ -71,8 +78,28 @@ final class AztecEditorController: ObservableObject {
     
     // MARK: - Links
     func insertLink() {
-        // TODO: Implement link insertion
-        print("🔗 Link insertion not yet implemented")
+        // Trigger link creation dialog
+        NotificationCenter.default.post(name: .insertLink, object: nil)
+    }
+    
+    func insertLinkWithURL(_ url: String, text: String? = nil) {
+        guard let textView = textView else { return }
+        
+        let linkText = text ?? url
+        let attributedString = NSMutableAttributedString(string: linkText)
+        let range = NSRange(location: 0, length: linkText.count)
+        
+        // Add link attribute
+        attributedString.addAttribute(.link, value: url, range: range)
+        attributedString.addAttribute(.foregroundColor, value: UIColor.systemBlue, range: range)
+        attributedString.addAttribute(.underlineStyle, value: NSUnderlineStyle.single.rawValue, range: range)
+        
+        // Insert at current cursor position
+        let mutableString = NSMutableAttributedString(attributedString: textView.attributedText)
+        mutableString.insert(attributedString, at: textView.selectedRange.location)
+        
+        textView.attributedText = mutableString
+        textView.selectedRange = NSRange(location: textView.selectedRange.location + linkText.count, length: 0)
     }
     
     // MARK: - Text Colors
@@ -107,6 +134,52 @@ final class AztecEditorController: ObservableObject {
     }
     
     func focus() { textView?.becomeFirstResponder() }
+    
+    // MARK: - Statistics
+    func getWordCount() -> Int {
+        guard let textView = textView else { return 0 }
+        let text = textView.text ?? ""
+        let words = text.components(separatedBy: .whitespacesAndNewlines)
+            .filter { !$0.isEmpty }
+        return words.count
+    }
+    
+    func getCharacterCount() -> Int {
+        guard let textView = textView else { return 0 }
+        return textView.text?.count ?? 0
+    }
+    
+    func getReadingTime() -> String {
+        let wordCount = getWordCount()
+        let readingTimeMinutes = max(1, wordCount / 200) // Average 200 words per minute
+        return "\(readingTimeMinutes) min read"
+    }
+    
+    // MARK: - Image Handling
+    func insertImageFromData(_ imageData: Data) {
+        guard let textView = textView,
+              let image = UIImage(data: imageData) else { return }
+        
+        // Create an attachment for the image
+        let attachment = NSTextAttachment()
+        attachment.image = image
+        
+        // Resize image to fit nicely in the text
+        let maxWidth: CGFloat = 300
+        let aspectRatio = image.size.height / image.size.width
+        let newSize = CGSize(width: min(maxWidth, image.size.width), 
+                           height: min(maxWidth * aspectRatio, image.size.height))
+        
+        attachment.bounds = CGRect(origin: .zero, size: newSize)
+        
+        // Insert the image at the current cursor position
+        let attributedString = NSAttributedString(attachment: attachment)
+        let mutableString = NSMutableAttributedString(attributedString: textView.attributedText)
+        mutableString.insert(attributedString, at: textView.selectedRange.location)
+        
+        textView.attributedText = mutableString
+        textView.selectedRange = NSRange(location: textView.selectedRange.location + 1, length: 0)
+    }
 }
 
 struct AztecEditorView: UIViewRepresentable {

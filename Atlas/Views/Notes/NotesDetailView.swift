@@ -16,6 +16,11 @@ struct NotesDetailView: View {
     @State private var showingTagPicker = false
     @State private var showingDeleteConfirmation = false
     @State private var hasUnsavedChanges = false
+    @State private var showingImagePicker = false
+    @State private var selectedImage: UIImage?
+    @State private var showingLinkCreation = false
+    @State private var linkURL = ""
+    @State private var linkText = ""
     
     // Aztec Editor Controller
     @StateObject private var editorController = AztecEditorController()
@@ -148,6 +153,35 @@ struct NotesDetailView: View {
         } message: {
             Text("Are you sure you want to delete this note? This action cannot be undone.")
         }
+        .sheet(isPresented: $showingImagePicker) {
+            ImagePicker(selectedImage: $selectedImage)
+        }
+        .sheet(isPresented: $showingLinkCreation) {
+            LinkCreationView(url: $linkURL, linkText: $linkText)
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .insertImage)) { _ in
+            showingImagePicker = true
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .insertLink)) { _ in
+            linkURL = ""
+            linkText = ""
+            showingLinkCreation = true
+        }
+        .onChange(of: selectedImage) { _, newImage in
+            if let image = newImage,
+               let imageData = image.jpegData(compressionQuality: 0.8) {
+                editorController.insertImageFromData(imageData)
+                selectedImage = nil // Reset after insertion
+            }
+        }
+        .onChange(of: linkURL) { _, newURL in
+            if !newURL.isEmpty && !showingLinkCreation {
+                // Link was created, insert it
+                editorController.insertLinkWithURL(newURL, text: linkText.isEmpty ? nil : linkText)
+                linkURL = ""
+                linkText = ""
+            }
+        }
     }
     
     // MARK: - Metadata Bar
@@ -189,6 +223,21 @@ struct NotesDetailView: View {
                         RoundedRectangle(cornerRadius: AtlasTheme.CornerRadius.small)
                             .fill(AtlasTheme.Colors.glassBackground)
                     )
+                }
+                
+                // Statistics
+                HStack(spacing: AtlasTheme.Spacing.sm) {
+                    Text("\(editorController.getWordCount()) words")
+                        .font(AtlasTheme.Typography.caption2)
+                        .foregroundColor(AtlasTheme.Colors.tertiaryText)
+                    
+                    Text("•")
+                        .font(AtlasTheme.Typography.caption2)
+                        .foregroundColor(AtlasTheme.Colors.tertiaryText)
+                    
+                    Text(editorController.getReadingTime())
+                        .font(AtlasTheme.Typography.caption2)
+                        .foregroundColor(AtlasTheme.Colors.tertiaryText)
                 }
                 
                 Spacer()
