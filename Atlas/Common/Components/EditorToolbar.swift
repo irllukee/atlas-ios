@@ -11,67 +11,91 @@ struct EditorToolbar: View {
             
             if showToolbar && isKeyboardVisible {
                 VStack(spacing: 0) {
-                    // Close button
+                    // Top control bar
                     HStack {
+                        // Keyboard dismiss button
+                        Button(action: {
+                            dismissKeyboard()
+                        }) {
+                            Image(systemName: "keyboard.chevron.compact.down")
+                                .font(.system(size: 16, weight: .medium))
+                                .foregroundColor(.primary)
+                                .frame(width: 36, height: 36)
+                                .background(
+                                    Circle()
+                                        .fill(.quaternary)
+                                )
+                        }
+                        .buttonStyle(PlainButtonStyle())
+                        
                         Spacer()
+                        
+                        // Close toolbar button
                         Button(action: {
                             showToolbar = false
                         }) {
                             Image(systemName: "xmark.circle.fill")
-                                .font(.title2)
+                                .font(.system(size: 16, weight: .medium))
                                 .foregroundColor(.secondary)
+                                .frame(width: 36, height: 36)
+                                .background(
+                                    Circle()
+                                        .fill(.quaternary)
+                                )
                         }
-                        .padding(.trailing, 16)
-                        .padding(.top, 8)
+                        .buttonStyle(PlainButtonStyle())
                     }
+                    .padding(.horizontal, 16)
+                    .padding(.top, 12)
+                    .padding(.bottom, 8)
                     
                     // Formatting buttons
                     ScrollView(.horizontal, showsIndicators: false) {
-                        HStack(spacing: 12) {
+                        HStack(spacing: 8) {
                             // Text Formatting
-                            formatButton(icon: "bold", action: { controller.bold(); controller.focus() })
-                            formatButton(icon: "italic", action: { controller.italic(); controller.focus() })
-                            formatButton(icon: "underline", action: { controller.underline(); controller.focus() })
-                            formatButton(icon: "strikethrough", action: { controller.strikethrough(); controller.focus() })
+                            modernFormatButton(icon: "bold", action: { controller.bold(); controller.focus() })
+                            modernFormatButton(icon: "italic", action: { controller.italic(); controller.focus() })
+                            modernFormatButton(icon: "underline", action: { controller.underline(); controller.focus() })
+                            modernFormatButton(icon: "strikethrough", action: { controller.strikethrough(); controller.focus() })
                             
-                            Divider()
-                                .frame(height: 20)
+                            modernDivider()
                             
                             // Headers
-                            formatButton(icon: "textformat.size", action: { controller.header1(); controller.focus() })
-                            formatButton(icon: "textformat.alt", action: { controller.header2(); controller.focus() })
-                            formatButton(icon: "textformat", action: { controller.header3(); controller.focus() })
+                            modernFormatButton(icon: "textformat.size", action: { controller.header1(); controller.focus() })
+                            modernFormatButton(icon: "textformat.alt", action: { controller.header2(); controller.focus() })
+                            modernFormatButton(icon: "textformat", action: { controller.header3(); controller.focus() })
                             
-                            Divider()
-                                .frame(height: 20)
+                            modernDivider()
                             
                             // Lists
-                            formatButton(icon: "list.bullet", action: { controller.bulletList(); controller.focus() })
-                            formatButton(icon: "list.number", action: { controller.numberedList(); controller.focus() })
+                            modernFormatButton(icon: "list.bullet", action: { controller.bulletList(); controller.focus() })
+                            modernFormatButton(icon: "list.number", action: { controller.numberedList(); controller.focus() })
                             
-                            Divider()
-                                .frame(height: 20)
+                            modernDivider()
                             
                             // Other
-                            formatButton(icon: "quote.bubble", action: { controller.quote(); controller.focus() })
-                            formatButton(icon: "chevron.left.forwardslash.chevron.right", action: { controller.code(); controller.focus() })
+                            modernFormatButton(icon: "quote.bubble", action: { controller.quote(); controller.focus() })
+                            modernFormatButton(icon: "chevron.left.forwardslash.chevron.right", action: { controller.code(); controller.focus() })
                         }
                         .padding(.horizontal, 16)
                     }
-                    .padding(.vertical, 12)
+                    .padding(.bottom, 16)
                 }
                 .background(
-                    RoundedRectangle(cornerRadius: 16)
-                        .fill(.thinMaterial)
+                    RoundedRectangle(cornerRadius: 20)
+                        .fill(.ultraThinMaterial)
                         .overlay(
-                            RoundedRectangle(cornerRadius: 16)
-                                .stroke(.separator, lineWidth: 0.5)
+                            RoundedRectangle(cornerRadius: 20)
+                                .stroke(.quaternary, lineWidth: 1)
                         )
-                        .shadow(color: .black.opacity(0.1), radius: 10, x: 0, y: -5)
+                        .shadow(color: .black.opacity(0.15), radius: 20, x: 0, y: -8)
                 )
-                .padding(.horizontal, 16)
-                .padding(.bottom, 10)
-                .transition(.move(edge: .bottom).combined(with: .opacity))
+                .padding(.horizontal, 20)
+                .padding(.bottom, 20)
+                .transition(.asymmetric(
+                    insertion: .move(edge: .bottom).combined(with: .opacity).animation(.spring(response: 0.6, dampingFraction: 0.8)),
+                    removal: .move(edge: .bottom).combined(with: .opacity).animation(.easeInOut(duration: 0.3))
+                ))
             }
         }
         .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillShowNotification)) { _ in
@@ -84,17 +108,34 @@ struct EditorToolbar: View {
         }
     }
     
-    private func formatButton(icon: String, action: @escaping () -> Void) -> some View {
+    private func modernFormatButton(icon: String, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Image(systemName: icon)
-                .font(.system(size: 16, weight: .medium))
+                .font(.system(size: 15, weight: .semibold))
                 .foregroundColor(.primary)
-                .frame(width: 32, height: 32)
+                .frame(width: 40, height: 40)
                 .background(
                     Circle()
                         .fill(.quaternary)
+                        .overlay(
+                            Circle()
+                                .stroke(.quaternary, lineWidth: 0.5)
+                        )
                 )
         }
         .buttonStyle(PlainButtonStyle())
+        .scaleEffect(1.0)
+        .animation(.easeInOut(duration: 0.1), value: UUID())
+    }
+    
+    private func modernDivider() -> some View {
+        Rectangle()
+            .fill(.quaternary)
+            .frame(width: 1, height: 24)
+            .padding(.horizontal, 4)
+    }
+    
+    private func dismissKeyboard() {
+        UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
     }
 }
