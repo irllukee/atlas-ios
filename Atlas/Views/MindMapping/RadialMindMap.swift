@@ -57,25 +57,7 @@ struct RadialMindMap: View {
                         )
                 }
 
-                // Curved connectors: center -> each child
-                Canvas { canvas, _ in
-                    let centerPoint = applyCamera(to: CGPoint(x: size.width/2, y: size.height/2))
-                    for item in layoutCache.items {
-                        let childPoint = applyCamera(to: item.center)
-                        var path = Path()
-                        let midPoint = CGPoint(
-                            x: (centerPoint.x + childPoint.x) / 2,
-                            y: (centerPoint.y + childPoint.y) / 2 - 20
-                        )
-                        path.move(to: centerPoint)
-                        path.addQuadCurve(to: childPoint, control: midPoint)
-                        canvas.stroke(
-                            path,
-                            with: .color(AtlasTheme.Colors.primary.opacity(0.22)),
-                            style: StrokeStyle(lineWidth: 1.5, lineCap: .round)
-                        )
-                    }
-                }
+                // Lines removed - keeping only circular nodes
 
                 // Center bubble
                 BubbleView(
@@ -88,10 +70,15 @@ struct RadialMindMap: View {
                 .frame(width: bubbleSize(for: size, isCenter: true),
                        height: bubbleSize(for: size, isCenter: true))
                 .position(applyCamera(to: CGPoint(x: size.width/2, y: size.height/2)))
-                .onTapGesture { onEditNote(center) }
+                .onTapGesture { 
+                    print("Center node tapped: \(center.title ?? "unknown")")
+                    onEditNote(center) 
+                }
                 .contextMenu {
                     Button("Add Child", systemImage: "plus") {
-                        addChild(to: center)
+                        let newChild = addChild(to: center)
+                        onFocusChild(newChild)
+                        navigationPath.wrappedValue.append(newChild)
                     }
                     Button("Rename", systemImage: "pencil") { 
                         onRename(center) 
@@ -116,13 +103,16 @@ struct RadialMindMap: View {
                         )
                         .frame(width: pos.size, height: pos.size)
                         .position(applyCamera(to: pos.center))
-                        .onTapGesture {
+                        .onTapGesture(count: 1) {
+                            print("Child node tapped: \(child.title ?? "unknown")")
                             onFocusChild(child)
                             navigationPath.wrappedValue.append(child)
                         }
                         .contextMenu {
                             Button("Add Sub-idea", systemImage: "plus") {
-                                addChild(to: child)
+                                let newChild = addChild(to: child)
+                                onFocusChild(newChild)
+                                navigationPath.wrappedValue.append(newChild)
                             }
                             Button("Rename", systemImage: "pencil") { 
                                 onRename(child) 
@@ -152,7 +142,7 @@ struct RadialMindMap: View {
             .scaleEffect(scale, anchor: .center)
             .offset(x: offset.width + dragOffset.width, y: offset.height + dragOffset.height)
             .contentShape(Rectangle())
-            .gesture(gestures(in: size))
+            .gesture(gestures(in: size).exclusively(before: TapGesture()))
             .onChange(of: children.count) { _, _ in
                 layoutCache = computeLayout(for: size)
                 if isFitting { zoomToFit(in: size) }
@@ -186,11 +176,12 @@ struct RadialMindMap: View {
 
     // MARK: - Helper Methods
     
-    private func addChild(to parent: Node) {
+    private func addChild(to parent: Node) -> Node {
         let child = Node(context: viewContext)
         child.uuid = UUID()
         child.title = "New Idea"
         child.createdAt = Date()
+        child.updatedAt = Date()
         child.parent = parent
         
         do {
@@ -198,6 +189,8 @@ struct RadialMindMap: View {
         } catch {
             print("Failed to add child: \(error)")
         }
+        
+        return child
     }
     
     private func deleteNode(_ node: Node) {
@@ -213,8 +206,11 @@ struct RadialMindMap: View {
     private func gestures(in size: CGSize) -> some Gesture {
         let magnify = MagnificationGesture(minimumScaleDelta: 0.01)
             .onChanged { value in
-                let newScale = scale * value
-                scale = min(2.5, max(0.5, newScale))
+                // Much slower, more controlled zoom with larger range
+                let zoomSensitivity: CGFloat = 0.15  // Even slower zoom (reduced from 0.3 to 0.15)
+                let newScale = scale * (1.0 + (value - 1.0) * zoomSensitivity)
+                // Much larger zoom range: 0.1 to 8.0 for extensive zoom control
+                scale = min(8.0, max(0.1, newScale))
             }
 
         let drag = DragGesture()
@@ -247,7 +243,18 @@ struct RadialMindMap: View {
                 }
             }
 
-        return magnify.simultaneously(with: drag)
+        let doubleTap = TapGesture(count: 2)
+            .onEnded {
+                // Reset zoom to a comfortable level
+                withAnimation(.easeInOut(duration: 0.5)) {
+                    scale = 1.0
+                    offset = .zero
+                }
+            }
+        
+        // Use simultaneous gesture to allow both zoom and tap to work
+        // Use highPriorityGesture to ensure tap gestures work properly
+        return magnify.simultaneously(with: drag).simultaneously(with: doubleTap)
     }
 
     private func zoomToFit(in size: CGSize) {

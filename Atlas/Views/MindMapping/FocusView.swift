@@ -3,6 +3,7 @@ import CoreData
 
 struct FocusView: View {
     @Environment(\.managedObjectContext) private var viewContext
+    @Environment(\.dismiss) private var dismiss
     @ObservedObject var node: Node
     @Binding var navigationPath: NavigationPath
     let dataManager: DataManager
@@ -15,6 +16,9 @@ struct FocusView: View {
     @State private var haptics = UIImpactFeedbackGenerator(style: .soft)
     @State private var cameraOffsetForParallax: CGSize = .zero
     @State private var showSearch: Bool = true
+    @State private var showingMenu = false
+    @State private var searchText = ""
+    @State private var isSearchFocused = false
 
     var body: some View {
         ZStack {
@@ -22,14 +26,6 @@ struct FocusView: View {
             
             VStack(spacing: 0) {
                 header
-                
-                if showSearch {
-                    SearchOverlay { jumpToNode in
-                        // Navigate to the selected node
-                        navigationPath.append(jumpToNode)
-                    }
-                    .transition(.opacity)
-                }
 
                 RadialMindMap(
                     center: node,
@@ -52,11 +48,48 @@ struct FocusView: View {
                 )
                 .padding(.bottom, 12)
 
-                toolbar
+                Spacer()
             }
             .onAppear { 
                 appeared = true
                 haptics.prepare() 
+            }
+            
+            // Hamburger Menu
+            VStack {
+                HStack {
+                    Spacer()
+                    Button(action: { showingMenu.toggle() }) {
+                        Image(systemName: "line.3.horizontal")
+                            .font(.title2)
+                            .foregroundColor(.white)
+                            .padding(12)
+                            .background(
+                                Circle()
+                                    .fill(AtlasTheme.Colors.primary.opacity(0.2))
+                                    .overlay(
+                                        Circle()
+                                            .stroke(AtlasTheme.Colors.primary.opacity(0.3), lineWidth: 1)
+                                    )
+                            )
+                    }
+                    .padding(.trailing)
+                    .padding(.top, 8)
+                }
+                Spacer()
+            }
+            
+            // Menu Overlay
+            if showingMenu {
+                menuOverlay
+            }
+            
+            // Floating Search Bar
+            VStack {
+                Spacer()
+                if showSearch {
+                    modernSearchBar
+                }
             }
         }
         .navigationBarHidden(true)
@@ -91,7 +124,19 @@ struct FocusView: View {
         HStack {
             if node.parent != nil {
                 Button {
-                    navigationPath.removeLast()
+                    print("Back button tapped - navigating back from \(node.title ?? "unknown") to \(node.parent?.title ?? "parent")")
+                    print("Current navigation path count: \(navigationPath.count)")
+                    
+                    // Try direct navigation to parent
+                    if let parent = node.parent {
+                        print("Navigating directly to parent: \(parent.title ?? "unknown")")
+                        // Clear the path and navigate to parent
+                        navigationPath = NavigationPath()
+                        navigationPath.append(parent)
+                    } else {
+                        print("No parent found, using dismiss")
+                        dismiss()
+                    }
                 } label: {
                     HStack(spacing: 6) {
                         Image(systemName: "chevron.left")
@@ -115,39 +160,65 @@ struct FocusView: View {
             
             Spacer()
             
-            Menu {
-                Button("Rename", systemImage: "pencil") {
-                    renameText = node.title ?? ""
-                    showingRename = true
-                }
-                Button("Edit Note", systemImage: "note.text") {
-                    selectedForEdit = node
-                }
-                Button("Style…", systemImage: "paintpalette") {
-                    showStyleFor = node
-                }
-                Divider()
-                Toggle(isOn: $showSearch.animation(.easeInOut(duration: 0.2))) { 
-                    Label("Show Search", systemImage: "magnifyingglass") 
-                }
-            } label: {
-                Image(systemName: "ellipsis.circle")
-                    .foregroundStyle(.white)
-                    .imageScale(.large)
-                    .accessibilityLabel("More options")
-            }
+            // Empty space where the 3 dots menu was
+            Color.clear.frame(width: 44, height: 44)
         }
         .padding(.horizontal)
         .padding(.top, 10)
     }
 
-    private var toolbar: some View {
+    // MARK: - Modern Search Bar
+    private var modernSearchBar: some View {
         HStack(spacing: 12) {
-            Button {
+            HStack(spacing: 8) {
+                Image(systemName: "magnifyingglass")
+                    .foregroundColor(.white.opacity(0.6))
+                    .font(.system(size: 16))
+                
+                TextField("Search nodes...", text: $searchText)
+                    .textFieldStyle(PlainTextFieldStyle())
+                    .foregroundColor(.white)
+                    .font(.system(size: 16))
+                    .onTapGesture {
+                        isSearchFocused = true
+                    }
+                    .onSubmit {
+                        isSearchFocused = false
+                        // Handle search
+                        performSearch()
+                    }
+                
+                if !searchText.isEmpty {
+                    Button(action: { 
+                        searchText = ""
+                        isSearchFocused = false
+                    }) {
+                        Image(systemName: "xmark.circle.fill")
+                            .foregroundColor(.white.opacity(0.6))
+                            .font(.system(size: 16))
+                    }
+                }
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 12)
+            .background(
+                RoundedRectangle(cornerRadius: 25)
+                    .fill(AtlasTheme.Colors.primary.opacity(0.15))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 25)
+                            .stroke(
+                                isSearchFocused ? AtlasTheme.Colors.primary : Color.clear, 
+                                lineWidth: 2
+                            )
+                    )
+            )
+            
+            Button(action: { 
                 let child = Node(context: viewContext)
                 child.uuid = UUID()
                 child.title = "New Idea"
                 child.createdAt = Date()
+                child.updatedAt = Date()
                 child.parent = node
                 
                 do {
@@ -155,37 +226,141 @@ struct FocusView: View {
                 } catch {
                     print("Failed to add child: \(error)")
                 }
-            } label: { 
-                Label("Add Child", systemImage: "plus.circle.fill") 
-            }
-            .buttonStyle(.borderedProminent)
-
-            Button {
-                selectedForEdit = node
-            } label: { 
-                Label("Edit Note", systemImage: "note.text") 
-            }
-            .buttonStyle(.bordered)
-
-            Button {
-                showStyleFor = node
-            } label: { 
-                Label("Style…", systemImage: "paintpalette") 
-            }
-            .buttonStyle(.bordered)
-            
-            if let children = node.children, children.count > 0 {
-                Button {
-                    reorganizeNodes()
-                } label: {
-                    Label("Reorganize", systemImage: "arrow.triangle.2.circlepath")
-                }
-                .buttonStyle(.bordered)
+            }) {
+                Image(systemName: "plus.circle.fill")
+                    .font(.title2)
+                    .foregroundColor(AtlasTheme.Colors.primary)
+                    .padding(8)
             }
         }
-        .padding(.horizontal)
-        .padding(.bottom, 16)
-        .accessibilityElement(children: .contain)
+        .padding(.horizontal, 20)
+        .padding(.bottom, 40) // Safe area padding
+        .padding(.top, 8)
+        .background(
+            RoundedRectangle(cornerRadius: 20)
+                .fill(AtlasTheme.Colors.background.opacity(0.9))
+                .shadow(color: .black.opacity(0.1), radius: 10, x: 0, y: -5)
+        )
+        .padding(.horizontal, 16)
+    }
+    
+    // MARK: - Menu Overlay
+    private var menuOverlay: some View {
+        ZStack {
+            // Background overlay
+            Color.black.opacity(0.3)
+                .ignoresSafeArea()
+                .onTapGesture {
+                    showingMenu = false
+                }
+            
+            // Menu panel
+            VStack(alignment: .leading, spacing: 16) {
+                HStack {
+                    Text("Mind Map Features")
+                        .font(.title2)
+                        .fontWeight(.bold)
+                        .foregroundColor(.white)
+                    
+                    Spacer()
+                    
+                    Button(action: { showingMenu = false }) {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.title2)
+                            .foregroundColor(.white.opacity(0.7))
+                    }
+                }
+                .padding(.horizontal)
+                .padding(.top)
+                
+                VStack(alignment: .leading, spacing: 12) {
+                    menuItem(icon: "plus.circle.fill", title: "Add Node", action: { 
+                        showingMenu = false
+                        let child = Node(context: viewContext)
+                        child.uuid = UUID()
+                        child.title = "New Idea"
+                        child.createdAt = Date()
+                        child.updatedAt = Date()
+                        child.parent = node
+                        
+                        do {
+                            try viewContext.save()
+                        } catch {
+                            print("Failed to add child: \(error)")
+                        }
+                    })
+                    
+                    menuItem(icon: "pencil", title: "Rename Node", action: { 
+                        showingMenu = false
+                        renameText = node.title ?? ""
+                        showingRename = true
+                    })
+                    
+                    menuItem(icon: "note.text", title: "Edit Note", action: { 
+                        showingMenu = false
+                        selectedForEdit = node
+                    })
+                    
+                    menuItem(icon: "paintpalette", title: "Style Node", action: { 
+                        showingMenu = false
+                        showStyleFor = node
+                    })
+                    
+                    menuItem(icon: "trash", title: "Delete Node", action: { 
+                        showingMenu = false
+                        // Delete functionality
+                    })
+                    
+                    menuItem(icon: "arrow.triangle.2.circlepath", title: "Reorganize", action: { 
+                        showingMenu = false
+                        reorganizeNodes()
+                    })
+                    
+                }
+                .padding(.horizontal)
+                .padding(.bottom)
+            }
+            .background(
+                RoundedRectangle(cornerRadius: 16)
+                    .fill(AtlasTheme.Colors.background.opacity(0.95))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 16)
+                            .stroke(AtlasTheme.Colors.primary.opacity(0.3), lineWidth: 1)
+                    )
+            )
+            .padding()
+            .frame(maxWidth: 300)
+            .position(x: UIScreen.main.bounds.width - 150, y: 200)
+        }
+    }
+    
+    private func menuItem(icon: String, title: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            HStack(spacing: 12) {
+                Image(systemName: icon)
+                    .font(.title3)
+                    .foregroundColor(AtlasTheme.Colors.primary)
+                    .frame(width: 24)
+                
+                Text(title)
+                    .font(.body)
+                    .foregroundColor(.white)
+                
+                Spacer()
+            }
+            .padding(.vertical, 8)
+            .padding(.horizontal, 12)
+            .background(
+                RoundedRectangle(cornerRadius: 8)
+                    .fill(AtlasTheme.Colors.primary.opacity(0.1))
+            )
+        }
+        .buttonStyle(PlainButtonStyle())
+    }
+    
+    private func performSearch() {
+        // Implement search functionality
+        print("Searching for: \(searchText)")
     }
     
     private func reorganizeNodes() {

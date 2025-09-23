@@ -35,6 +35,7 @@ extension Task: BaseEntity {
     }
 }
 extension JournalEntry: BaseEntity {}
+extension Node: BaseEntity {}
 
 // MARK: - Entity Validation
 extension BaseEntity {
@@ -175,5 +176,52 @@ extension MoodEntry {
             self.notes = notes
         }
         self.updatedAt = Date()
+    }
+}
+
+extension Node {
+    /// Create a new node with default values
+    static func create(context: NSManagedObjectContext, title: String, parent: Node? = nil, direction: String? = nil, level: Int16 = 0) -> Node {
+        let node = Node(context: context)
+        node.uuid = UUID()
+        node.title = title
+        node.createdAt = Date()
+        node.updatedAt = Date()
+        node.parent = parent
+        node.direction = direction
+        node.level = level
+        return node
+    }
+    
+    /// Update node details
+    func update(title: String? = nil, note: String? = nil, direction: String? = nil, level: Int16? = nil) {
+        if let title = title {
+            self.title = title
+        }
+        if let note = note {
+            self.note = note
+        }
+        if let direction = direction {
+            self.direction = direction
+        }
+        if let level = level {
+            self.level = level
+        }
+        self.updatedAt = Date()
+    }
+    
+    /// Get all children as an array
+    var childrenArray: [Node] {
+        return Array(children as? Set<Node> ?? [])
+    }
+    
+    /// Check if node has children in a specific direction
+    func hasChildInDirection(_ direction: String) -> Bool {
+        return childrenArray.contains { $0.direction == direction }
+    }
+    
+    /// Get child in specific direction
+    func childInDirection(_ direction: String) -> Node? {
+        return childrenArray.first { $0.direction == direction }
     }
 }
