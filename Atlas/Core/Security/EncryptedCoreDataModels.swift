@@ -1,5 +1,19 @@
 import Foundation
 import CoreData
+import CryptoKit
+
+// MARK: - EncryptedData Struct
+struct EncryptedData: Codable {
+    let data: Data
+    let nonce: Data
+    let tag: Data
+    
+    init(data: Data, nonce: Data, tag: Data) {
+        self.data = data
+        self.nonce = nonce
+        self.tag = tag
+    }
+}
 
 /// Extensions to CoreData models for encryption support
 extension Note {

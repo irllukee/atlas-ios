@@ -9,6 +9,8 @@ struct AtlasApp: App {
     @StateObject private var securityManager = SecurityManager.shared
     @StateObject private var biometricService = BiometricService.shared
     @StateObject private var permissionManager = PermissionManager.shared
+    @StateObject private var notesService = NotesService.shared
+    @StateObject private var dependencyContainer = DependencyContainer.shared
     
     // MARK: - App State
     @State private var isAppReady = false
@@ -58,6 +60,8 @@ struct AtlasApp: App {
                             .environmentObject(securityManager)
                             .environmentObject(biometricService)
                             .environmentObject(permissionManager)
+                            .environmentObject(notesService)
+                            .environmentObject(dependencyContainer)
                             .environment(\.managedObjectContext, dataManager.coreDataStack.persistentContainer.viewContext)
                     } else {
                         // Show permission onboarding
@@ -86,6 +90,11 @@ struct AtlasApp: App {
             DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
                 dataManager.logPerformanceMetrics()
             }
+        }
+        
+        // Initialize Journal data in background
+        _Concurrency.Task {
+            await JournalInitializationService.shared.initializeJournalData()
         }
     }
     

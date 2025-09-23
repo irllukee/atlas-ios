@@ -93,16 +93,12 @@ struct ContentView: View {
         switch selectedView {
         case .dashboard:
             dashboardView
-        case .tasks:
-            TasksView(dataManager: dataManager)
-        case .journal:
-            JournalView(dataManager: dataManager, encryptionService: securityManager.encryptionService)
         case .notes:
             NotesListView()
-        case .calendar:
-            CalendarView()
-        case .analytics:
-            AnalyticsNavigationView()
+        case .journal:
+            JournalView()
+        case .tasks:
+            TasksView()
         case .watchlist:
             WatchlistView(dataManager: dataManager)
         case .recipes:
@@ -246,41 +242,6 @@ struct ContentView: View {
             
             // Right side - vertically stacked stats cards (bigger and closer to edge)
             VStack(spacing: 15) {
-                // Tasks Completed Today
-                QuickStatCard(
-                    title: "Tasks Done",
-                    value: "\(dashboardDataService.dashboardStats.tasksCompletedToday)",
-                    subtitle: "of \(dashboardDataService.dashboardStats.tasksTotalToday) today",
-                    icon: "checkmark.circle.fill",
-                    color: .green,
-                    progress: dashboardDataService.dashboardStats.tasksProgress,
-                    action: {
-                        selectedView = .tasks
-                        withAnimation(.spring(response: 0.5, dampingFraction: 0.8, blendDuration: 0.1)) {
-                            isMenuOpen = false
-                        }
-                    }
-                )
-                .scaleEffect(0.7)
-                .frame(width: 180, height: 90)
-                
-                // Journal Entries
-                QuickStatCard(
-                    title: "Journal",
-                    value: "\(dashboardDataService.dashboardStats.journalEntriesToday)",
-                    subtitle: "entries today",
-                    icon: "book.fill",
-                    color: .purple,
-                    progress: dashboardDataService.dashboardStats.journalProgress,
-                    action: {
-                        selectedView = .journal
-                        withAnimation(.spring(response: 0.5, dampingFraction: 0.8, blendDuration: 0.1)) {
-                            isMenuOpen = false
-                        }
-                    }
-                )
-                .scaleEffect(0.7)
-                .frame(width: 180, height: 90)
                 
                 // Notes
                 QuickStatCard(
@@ -292,6 +253,42 @@ struct ContentView: View {
                     progress: 0.6, // TODO: Calculate notes progress
                     action: {
                         selectedView = .notes
+                        withAnimation(.spring(response: 0.5, dampingFraction: 0.8, blendDuration: 0.1)) {
+                            isMenuOpen = false
+                        }
+                    }
+                )
+                .scaleEffect(0.7)
+                .frame(width: 180, height: 90)
+                
+                // Journal
+                QuickStatCard(
+                    title: "Journal",
+                    value: "0", // TODO: Get journal entries count
+                    subtitle: "entries today",
+                    icon: "book.pages",
+                    color: .purple,
+                    progress: 0.3, // TODO: Calculate journal progress
+                    action: {
+                        selectedView = .journal
+                        withAnimation(.spring(response: 0.5, dampingFraction: 0.8, blendDuration: 0.1)) {
+                            isMenuOpen = false
+                        }
+                    }
+                )
+                .scaleEffect(0.7)
+                .frame(width: 180, height: 90)
+                
+                // Tasks
+                QuickStatCard(
+                    title: "Tasks",
+                    value: "0", // TODO: Get tasks count
+                    subtitle: "pending today",
+                    icon: "checkmark.circle",
+                    color: .green,
+                    progress: 0.5, // TODO: Calculate tasks progress
+                    action: {
+                        selectedView = .tasks
                         withAnimation(.spring(response: 0.5, dampingFraction: 0.8, blendDuration: 0.1)) {
                             isMenuOpen = false
                         }

@@ -1,128 +1,162 @@
-import Foundation
+import Combine
 import CoreData
+import Foundation
 
-/// Repository for managing Task entities
-class TaskRepository: BaseRepository<Task>, @unchecked Sendable {
+// MARK: - Task Repository
+
+protocol TaskRepositoryProtocol {
+    func getAllTasks() -> AnyPublisher<[Task], Error>
+    func getTasksForTab(_ tab: TaskTab) -> AnyPublisher<[Task], Error>
+    func createTask(_ task: Task) -> AnyPublisher<Task, Error>
+    func updateTask(_ task: Task) -> AnyPublisher<Task, Error>
+    func deleteTask(_ task: Task) -> AnyPublisher<Void, Error>
+    func duplicateTask(_ task: Task) -> AnyPublisher<Task, Error>
     
-    // MARK: - Custom Queries
-    func fetchCompleted() -> [Task] {
-        let predicate = NSPredicate(format: "isCompleted == YES")
-        let sortDescriptors = [NSSortDescriptor(keyPath: \Task.completedAt, ascending: false)]
-        return fetch(predicate: predicate, sortDescriptors: sortDescriptors)
+    // Async/await methods
+    @MainActor func fetchTasks() async throws -> [Task]
+    @MainActor func fetchTasksForTab(_ tab: TaskTab) async throws -> [Task]
+    @MainActor func createTaskAsync(_ task: Task) async throws -> Task
+    @MainActor func updateTaskAsync(_ task: Task) async throws -> Task
+    @MainActor func deleteTaskAsync(_ task: Task) async throws
+    @MainActor func duplicateTaskAsync(_ task: Task) async throws -> Task
+}
+
+class TaskRepository: TaskRepositoryProtocol {
+    private let context: NSManagedObjectContext
+    
+    init(context: NSManagedObjectContext) {
+        self.context = context
     }
     
-    func fetchPending() -> [Task] {
-        let predicate = NSPredicate(format: "isCompleted == NO")
-        let sortDescriptors = [NSSortDescriptor(keyPath: \Task.priority, ascending: false), NSSortDescriptor(keyPath: \Task.dueDate, ascending: true)]
-        return fetch(predicate: predicate, sortDescriptors: sortDescriptors)
-    }
-    
-    func fetchByPriority(_ priority: Int16) -> [Task] {
-        let predicate = NSPredicate(format: "priority == %d", priority)
-        let sortDescriptors = [NSSortDescriptor(keyPath: \Task.dueDate, ascending: true)]
-        return fetch(predicate: predicate, sortDescriptors: sortDescriptors)
-    }
-    
-    func fetchOverdue() -> [Task] {
-        let predicate = NSPredicate(format: "dueDate < %@ AND isCompleted == NO", Date() as NSDate)
-        let sortDescriptors = [NSSortDescriptor(keyPath: \Task.dueDate, ascending: true)]
-        return fetch(predicate: predicate, sortDescriptors: sortDescriptors)
-    }
-    
-    func fetchDueToday() -> [Task] {
-        let calendar = Calendar.current
-        let startOfDay = calendar.startOfDay(for: Date())
-        let endOfDay = calendar.date(byAdding: .day, value: 1, to: startOfDay)!
-        
-        let predicate = NSPredicate(format: "dueDate >= %@ AND dueDate < %@ AND isCompleted == NO", startOfDay as NSDate, endOfDay as NSDate)
-        let sortDescriptors = [NSSortDescriptor(keyPath: \Task.priority, ascending: false)]
-        return fetch(predicate: predicate, sortDescriptors: sortDescriptors)
-    }
-    
-    func fetchDueThisWeek() -> [Task] {
-        let calendar = Calendar.current
-        let startOfWeek = calendar.dateInterval(of: .weekOfYear, for: Date())?.start ?? Date()
-        let endOfWeek = calendar.dateInterval(of: .weekOfYear, for: Date())?.end ?? Date()
-        
-        let predicate = NSPredicate(format: "dueDate >= %@ AND dueDate < %@ AND isCompleted == NO", startOfWeek as NSDate, endOfWeek as NSDate)
-        let sortDescriptors = [NSSortDescriptor(keyPath: \Task.dueDate, ascending: true)]
-        return fetch(predicate: predicate, sortDescriptors: sortDescriptors)
-    }
-    
-    func fetchRecurring() -> [Task] {
-        let predicate = NSPredicate(format: "isRecurring == YES")
-        let sortDescriptors = [NSSortDescriptor(keyPath: \Task.updatedAt, ascending: false)]
-        return fetch(predicate: predicate, sortDescriptors: sortDescriptors)
-    }
-    
-    // MARK: - Create Operations
-    func createTask(title: String, notes: String = "", priority: Int16 = 1, dueDate: Date? = nil, isRecurring: Bool = false, recurrencePattern: String? = nil) -> Task? {
-        let task = Task.create(context: context, title: title, notes: notes)
-        task.priority = priority
-        task.dueDate = dueDate
-        task.isRecurring = isRecurring
-        task.recurrencePattern = recurrencePattern
-        
-        if save() {
-            return task
-        } else {
-            context.delete(task)
-            return nil
+    func getAllTasks() -> AnyPublisher<[Task], Error> {
+        Future { promise in
+            let request: NSFetchRequest<Task> = Task.fetchRequest()
+            request.sortDescriptors = [NSSortDescriptor(keyPath: \Task.createdAt, ascending: false)]
+            
+            do {
+                let tasks = try self.context.fetch(request)
+                promise(.success(tasks))
+            } catch {
+                promise(.failure(error))
+            }
         }
+        .eraseToAnyPublisher()
     }
     
-    // MARK: - Update Operations
-    func updateTask(_ task: Task, title: String? = nil, notes: String? = nil, priority: Int16? = nil, dueDate: Date? = nil) -> Bool {
-        task.update(title: title, notes: notes, priority: priority, dueDate: dueDate)
-        return save()
-    }
-    
-    func completeTask(_ task: Task) -> Bool {
-        task.complete()
-        return save()
-    }
-    
-    func uncompleteTask(_ task: Task) -> Bool {
-        task.uncomplete()
-        return save()
-    }
-    
-    func toggleCompletion(_ task: Task) -> Bool {
-        if task.isCompleted {
-            return uncompleteTask(task)
-        } else {
-            return completeTask(task)
+    func getTasksForTab(_ tab: TaskTab) -> AnyPublisher<[Task], Error> {
+        Future { promise in
+            let request: NSFetchRequest<Task> = Task.fetchRequest()
+            request.predicate = NSPredicate(format: "tab == %@", tab)
+            request.sortDescriptors = [NSSortDescriptor(keyPath: \Task.createdAt, ascending: false)]
+            
+            do {
+                let tasks = try self.context.fetch(request)
+                promise(.success(tasks))
+            } catch {
+                promise(.failure(error))
+            }
         }
+        .eraseToAnyPublisher()
     }
     
-    // MARK: - Search Operations
-    func searchTasks(query: String) -> [Task] {
-        let titlePredicate = NSPredicate(format: "title CONTAINS[cd] %@", query)
-        let notesPredicate = NSPredicate(format: "notes CONTAINS[cd] %@", query)
-        let predicate = NSCompoundPredicate(orPredicateWithSubpredicates: [titlePredicate, notesPredicate])
-        
-        let sortDescriptors = [NSSortDescriptor(keyPath: \Task.priority, ascending: false), NSSortDescriptor(keyPath: \Task.updatedAt, ascending: false)]
-        return fetch(predicate: predicate, sortDescriptors: sortDescriptors, limit: 30) // Limit search results
+    func createTask(_ task: Task) -> AnyPublisher<Task, Error> {
+        Future { promise in
+            do {
+                try self.context.save()
+                promise(.success(task))
+            } catch {
+                promise(.failure(error))
+            }
+        }
+        .eraseToAnyPublisher()
     }
     
-    // MARK: - Statistics
+    func updateTask(_ task: Task) -> AnyPublisher<Task, Error> {
+        Future { promise in
+            task.updatedAt = Date()
+            do {
+                try self.context.save()
+                promise(.success(task))
+            } catch {
+                promise(.failure(error))
+            }
+        }
+        .eraseToAnyPublisher()
+    }
+    
+    func deleteTask(_ task: Task) -> AnyPublisher<Void, Error> {
+        Future { promise in
+            self.context.delete(task)
+            do {
+                try self.context.save()
+                promise(.success(()))
+            } catch {
+                promise(.failure(error))
+            }
+        }
+        .eraseToAnyPublisher()
+    }
+    
+    func duplicateTask(_ task: Task) -> AnyPublisher<Task, Error> {
+        Future { promise in
+            let newTask = Task(context: self.context)
+            newTask.title = (task.title ?? "Task") + " (Copy)"
+            newTask.notes = task.notes
+            newTask.priority = task.priority
+            newTask.dueDate = task.dueDate
+            newTask.recurringType = task.recurringType
+            newTask.category = task.category
+            newTask.tab = task.tab
+
+            do {
+                try self.context.save()
+                promise(.success(newTask))
+            } catch {
+                promise(.failure(error))
+            }
+        }
+        .eraseToAnyPublisher()
+    }
+    
+    // MARK: - Statistics Methods
+    
     func getTotalCount() -> Int {
-        return count()
+        let request: NSFetchRequest<Task> = Task.fetchRequest()
+        do {
+            return try context.count(for: request)
+        } catch {
+            return 0
+        }
     }
     
     func getCompletedCount() -> Int {
-        let predicate = NSPredicate(format: "isCompleted == YES")
-        return count(predicate: predicate)
+        let request: NSFetchRequest<Task> = Task.fetchRequest()
+        request.predicate = NSPredicate(format: "isCompleted == YES")
+        do {
+            return try context.count(for: request)
+        } catch {
+            return 0
+        }
     }
     
     func getPendingCount() -> Int {
-        let predicate = NSPredicate(format: "isCompleted == NO")
-        return count(predicate: predicate)
+        let request: NSFetchRequest<Task> = Task.fetchRequest()
+        request.predicate = NSPredicate(format: "isCompleted == NO")
+        do {
+            return try context.count(for: request)
+        } catch {
+            return 0
+        }
     }
     
     func getOverdueCount() -> Int {
-        let predicate = NSPredicate(format: "dueDate < %@ AND isCompleted == NO", Date() as NSDate)
-        return count(predicate: predicate)
+        let request: NSFetchRequest<Task> = Task.fetchRequest()
+        request.predicate = NSPredicate(format: "isCompleted == NO AND dueDate < %@", Date() as NSDate)
+        do {
+            return try context.count(for: request)
+        } catch {
+            return 0
+        }
     }
     
     func getDueTodayCount() -> Int {
@@ -130,20 +164,175 @@ class TaskRepository: BaseRepository<Task>, @unchecked Sendable {
         let startOfDay = calendar.startOfDay(for: Date())
         let endOfDay = calendar.date(byAdding: .day, value: 1, to: startOfDay)!
         
-        let predicate = NSPredicate(format: "dueDate >= %@ AND dueDate < %@ AND isCompleted == NO", startOfDay as NSDate, endOfDay as NSDate)
-        return count(predicate: predicate)
+        let request: NSFetchRequest<Task> = Task.fetchRequest()
+        request.predicate = NSPredicate(format: "isCompleted == NO AND dueDate >= %@ AND dueDate < %@", 
+                                      startOfDay as NSDate, endOfDay as NSDate)
+        do {
+            return try context.count(for: request)
+        } catch {
+            return 0
+        }
     }
     
     func getCompletionRate() -> Double {
         let total = getTotalCount()
         guard total > 0 else { return 0.0 }
-        
         let completed = getCompletedCount()
-        return Double(completed) / Double(total)
+        return Double(completed) / Double(total) * 100.0
     }
     
     func getHighPriorityCount() -> Int {
-        let predicate = NSPredicate(format: "priority >= 3 AND isCompleted == NO")
-        return count(predicate: predicate)
+        let request: NSFetchRequest<Task> = Task.fetchRequest()
+        request.predicate = NSPredicate(format: "priority == %@ OR priority == %@", 
+                                      TaskPriority.high.rawValue, TaskPriority.urgent.rawValue)
+        do {
+            return try context.count(for: request)
+        } catch {
+            return 0
+        }
+    }
+    
+    // MARK: - Async/Await Methods
+    
+    @MainActor func fetchTasks() async throws -> [Task] {
+        let request: NSFetchRequest<Task> = Task.fetchRequest()
+        request.sortDescriptors = [NSSortDescriptor(keyPath: \Task.createdAt, ascending: false)]
+        return try context.fetch(request)
+    }
+    
+    @MainActor func fetchTasksForTab(_ tab: TaskTab) async throws -> [Task] {
+        let request: NSFetchRequest<Task> = Task.fetchRequest()
+        request.predicate = NSPredicate(format: "tab == %@", tab)
+        request.sortDescriptors = [NSSortDescriptor(keyPath: \Task.createdAt, ascending: false)]
+        return try context.fetch(request)
+    }
+    
+    @MainActor func createTaskAsync(_ task: Task) async throws -> Task {
+        try context.save()
+        return task
+    }
+    
+    @MainActor func updateTaskAsync(_ task: Task) async throws -> Task {
+        try context.save()
+        return task
+    }
+    
+    @MainActor func deleteTaskAsync(_ task: Task) async throws {
+        context.delete(task)
+        try context.save()
+    }
+    
+    @MainActor func duplicateTaskAsync(_ task: Task) async throws -> Task {
+        let newTask = Task(context: context)
+        newTask.title = (task.title ?? "Task") + " (Copy)"
+        newTask.notes = task.notes
+        newTask.priority = task.priority
+        newTask.dueDate = task.dueDate
+        newTask.recurringType = task.recurringType
+        newTask.category = task.category
+        newTask.tab = task.tab
+        
+        try context.save()
+        return newTask
+    }
+}
+
+// MARK: - Task Tab Repository
+
+protocol TaskTabRepositoryProtocol {
+    func getAllTabs() -> AnyPublisher<[TaskTab], Error>
+    func createTab(_ tab: TaskTab) -> AnyPublisher<TaskTab, Error>
+    func updateTab(_ tab: TaskTab) -> AnyPublisher<TaskTab, Error>
+    func deleteTab(_ tab: TaskTab) -> AnyPublisher<Void, Error>
+    
+    // Async/await methods
+    @MainActor func fetchTabs() async throws -> [TaskTab]
+    @MainActor func createTabAsync(_ tab: TaskTab) async throws -> TaskTab
+    @MainActor func updateTabAsync(_ tab: TaskTab) async throws -> TaskTab
+    @MainActor func deleteTabAsync(_ tab: TaskTab) async throws
+}
+
+class TaskTabRepository: TaskTabRepositoryProtocol {
+    private let context: NSManagedObjectContext
+    
+    init(context: NSManagedObjectContext) {
+        self.context = context
+    }
+    
+    func getAllTabs() -> AnyPublisher<[TaskTab], Error> {
+        Future { promise in
+            let request: NSFetchRequest<TaskTab> = TaskTab.fetchRequest()
+            request.sortDescriptors = [NSSortDescriptor(keyPath: \TaskTab.createdAt, ascending: true)]
+            
+            do {
+                let tabs = try self.context.fetch(request)
+                promise(.success(tabs))
+            } catch {
+                promise(.failure(error))
+            }
+        }
+        .eraseToAnyPublisher()
+    }
+    
+    func createTab(_ tab: TaskTab) -> AnyPublisher<TaskTab, Error> {
+        Future { promise in
+            do {
+                try self.context.save()
+                promise(.success(tab))
+            } catch {
+                promise(.failure(error))
+            }
+        }
+        .eraseToAnyPublisher()
+    }
+    
+    func updateTab(_ tab: TaskTab) -> AnyPublisher<TaskTab, Error> {
+        Future { promise in
+            do {
+                try self.context.save()
+                promise(.success(tab))
+            } catch {
+                promise(.failure(error))
+            }
+        }
+        .eraseToAnyPublisher()
+    }
+    
+    func deleteTab(_ tab: TaskTab) -> AnyPublisher<Void, Error> {
+        Future { promise in
+            self.context.delete(tab)
+            do {
+                try self.context.save()
+                promise(.success(()))
+            } catch {
+                promise(.failure(error))
+            }
+        }
+        .eraseToAnyPublisher()
+    }
+}
+
+// MARK: - TaskTabRepository Async Methods
+
+extension TaskTabRepository {
+    @MainActor func fetchTabs() async throws -> [TaskTab] {
+        let request: NSFetchRequest<TaskTab> = TaskTab.fetchRequest()
+        request.sortDescriptors = [NSSortDescriptor(keyPath: \TaskTab.createdAt, ascending: true)]
+        return try context.fetch(request)
+    }
+    
+    @MainActor func createTabAsync(_ tab: TaskTab) async throws -> TaskTab {
+        try context.save()
+        return tab
+    }
+    
+    @MainActor func updateTabAsync(_ tab: TaskTab) async throws -> TaskTab {
+        try context.save()
+        return tab
+    }
+    
+    @MainActor func deleteTabAsync(_ tab: TaskTab) async throws {
+        context.delete(tab)
+        try context.save()
     }
 }

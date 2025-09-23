@@ -2,7 +2,7 @@ import SwiftUI
 
 struct MoodQuickLogView: View {
     // MARK: - Properties
-    @ObservedObject var viewModel: JournalViewModel
+    @ObservedObject var dataManager: DataManager
     @Environment(\.dismiss) private var dismiss
     
     @State private var moodValue: Double = 5.0
@@ -163,12 +163,9 @@ struct MoodQuickLogView: View {
     private func saveMood() {
         isSaving = true
         
-        // Convert slider value to MoodLevel
-        let moodLevel = MoodLevel(rawValue: Int16(moodValue)) ?? .neutral
-        
         // Create mood entry
-        viewModel.createMoodEntry(
-            rating: moodLevel,
+        dataManager.createMoodEntry(
+            moodLevel: Int16(moodValue),
             emoji: moodEmoji,
             notes: nil
         )
@@ -189,10 +186,8 @@ struct MoodQuickLogView: View {
 struct MoodQuickLogView_Previews: PreviewProvider {
     static var previews: some View {
         let dataManager = DataManager.shared
-        let encryptionService = EncryptionService.shared
-        let viewModel = JournalViewModel(dataManager: dataManager, encryptionService: encryptionService)
         
-        MoodQuickLogView(viewModel: viewModel)
+        MoodQuickLogView(dataManager: dataManager)
     }
 }
 

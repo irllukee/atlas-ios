@@ -2,7 +2,7 @@ import SwiftUI
 
 struct MoodView: View {
     // MARK: - Properties
-    @StateObject private var viewModel: JournalViewModel
+    @StateObject private var dataManager = DataManager.shared
     @State private var selectedTab: MoodTab = .quickLog
     @State private var showingMoodDetails: Bool = false
     
@@ -20,7 +20,7 @@ struct MoodView: View {
     
     // MARK: - Initialization
     init(dataManager: DataManager, encryptionService: EncryptionService) {
-        self._viewModel = StateObject(wrappedValue: JournalViewModel(dataManager: dataManager, encryptionService: encryptionService))
+        // Initialize dataManager
     }
     
     // MARK: - Body
@@ -55,7 +55,7 @@ struct MoodView: View {
                 }
             }
             .sheet(isPresented: $showingMoodDetails) {
-                MoodQuickLogView(viewModel: viewModel)
+                MoodQuickLogView(dataManager: dataManager)
             }
         }
     }
@@ -114,7 +114,7 @@ struct MoodView: View {
     
     // MARK: - Trends Tab
     private var trendsTab: some View {
-        MoodTrendsView(viewModel: viewModel)
+        MoodTrendsView(dataManager: dataManager)
     }
     
     // MARK: - Today's Mood Summary
@@ -134,11 +134,11 @@ struct MoodView: View {
                                         .font(.system(size: 40))
                                     
                                     VStack(alignment: .leading, spacing: 4) {
-                                        Text("\(Int(todayMood.rating))/10")
+                                        Text("\(Int(todayMood.moodLevel))/10")
                                             .font(.title2)
                                             .fontWeight(.bold)
                                         
-                                        Text(moodDescription(for: Int(todayMood.rating)))
+                                        Text(moodDescription(for: Int(todayMood.moodLevel)))
                                             .font(.subheadline)
                                             .foregroundColor(.secondary)
                                     }
@@ -295,14 +295,14 @@ struct MoodView: View {
         let calendar = Calendar.current
         let today = Date()
         
-        return viewModel.moodEntries.first { entry in
+        return dataManager.getMoodEntries().first { entry in
             guard let date = entry.createdAt else { return false }
             return calendar.isDate(date, inSameDayAs: today)
         }
     }
     
     private var recentMoodEntries: [MoodEntry] {
-        viewModel.moodEntries
+        dataManager.getMoodEntries()
             .sorted { ($0.createdAt ?? Date.distantPast) > ($1.createdAt ?? Date.distantPast) }
     }
     
@@ -330,11 +330,10 @@ struct MoodView: View {
     }
     
     private func logQuickMood(_ value: Int) {
-        let moodLevel = MoodLevel(rawValue: Int16(value)) ?? .neutral
         let emoji = moodEmoji(for: value)
         
-        viewModel.createMoodEntry(
-            rating: moodLevel,
+        dataManager.createMoodEntry(
+            moodLevel: Int16(value),
             emoji: emoji,
             notes: nil
         )
@@ -350,7 +349,7 @@ struct MoodView_Previews: PreviewProvider {
     static var previews: some View {
         MoodView(
             dataManager: DataManager.shared,
-            encryptionService: EncryptionService.shared
+            encryptionService: EncryptionService()
         )
     }
 }

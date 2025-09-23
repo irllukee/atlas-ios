@@ -4,7 +4,7 @@ import SwiftUI
 struct NotesDetailView: View {
     let note: Note?
     
-    @StateObject private var notesService = NotesService.shared
+    @EnvironmentObject private var notesService: NotesService
     @Environment(\.dismiss) private var dismiss
     
     @State private var title: String = ""
@@ -434,7 +434,7 @@ struct NotesDetailView: View {
     // MARK: - Title Derivation
     private func deriveCleanTitle(from title: String, content: String) -> String {
         // If we have a clean title, use it
-        if !title.isEmpty && !title.contains("<!DOCTYPE") && !title.contains("<") {
+        if !title.isEmpty && !title.contains("<") && !title.contains("&") {
             return title
         }
         
@@ -472,7 +472,7 @@ struct NotesDetailView: View {
 // MARK: - Folder Picker View
 struct FolderPickerView: View {
     @Binding var selectedFolder: NoteFolder?
-    @StateObject private var notesService = NotesService.shared
+    @EnvironmentObject private var notesService: NotesService
     @Environment(\.dismiss) private var dismiss
     
     var body: some View {
@@ -527,7 +527,7 @@ struct FolderPickerView: View {
 // MARK: - Notes Tag Picker View
 struct NotesTagPickerView: View {
     @Binding var selectedTags: Set<NoteTag>
-    @StateObject private var notesService = NotesService.shared
+    @EnvironmentObject private var notesService: NotesService
     @Environment(\.dismiss) private var dismiss
     
     var body: some View {

@@ -2,7 +2,7 @@ import SwiftUI
 
 // MARK: - Notes List View
 struct NotesListView: View {
-    @StateObject private var notesService = NotesService.shared
+    @EnvironmentObject private var notesService: NotesService
     @State private var showingNewNote = false
     @State private var showingNoteDetail = false
     @State private var showingFolderManagement = false
@@ -641,7 +641,7 @@ struct NoteCardView: View {
     // MARK: - Plain Text Helpers
     private func plainTextTitle(from title: String?, content: String?) -> String {
         // If we have a clean title, use it
-        if let title = title, !title.isEmpty, !title.contains("<!DOCTYPE") {
+        if let title = title, !title.isEmpty, !title.contains("<") && !title.contains("&") {
             return title
         }
         
@@ -697,7 +697,7 @@ struct NoteCardView: View {
 // MARK: - Move to Folder View
 struct MoveToFolderView: View {
     let selectedNotes: [Note]
-    @StateObject private var notesService = NotesService.shared
+    @EnvironmentObject private var notesService: NotesService
     @Environment(\.dismiss) private var dismiss
     @State private var selectedFolder: NoteFolder?
     

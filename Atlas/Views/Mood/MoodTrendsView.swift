@@ -3,7 +3,7 @@ import Charts
 
 struct MoodTrendsView: View {
     // MARK: - Properties
-    @ObservedObject var viewModel: JournalViewModel
+    @ObservedObject var dataManager: DataManager
     @State private var selectedTimeframe: Timeframe = .week
     @State private var showingMoodDetails: Bool = false
     
@@ -53,7 +53,7 @@ struct MoodTrendsView: View {
                 }
             }
             .sheet(isPresented: $showingMoodDetails) {
-                MoodQuickLogView(viewModel: viewModel)
+                MoodQuickLogView(dataManager: dataManager)
             }
         }
     }
@@ -140,19 +140,19 @@ struct MoodTrendsView: View {
                             }
                         }
                     } else {
-                        // Fallback for iOS 15
-                        AnalyticsLineChart(
-                            data: viewModel.getMoodTrend(days: selectedTimeframe.days).enumerated().compactMap { index, moodLevel in
-                                guard let mood = moodLevel else { return nil }
-                                let calendar = Calendar.current
-                                let date = calendar.date(byAdding: .day, value: index, to: calendar.date(byAdding: .day, value: -selectedTimeframe.days, to: Date())!)!
-                                return ChartDataPoint(date: date, value: Double(mood.rawValue))
-                            },
-                            title: "Mood Trend",
-                            yAxisLabel: "Mood",
-                            color: .blue
-                        )
+                        // Fallback for iOS 15 - Simple text display
+                        VStack {
+                            Text("Mood Trend")
+                                .font(.headline)
+                                .padding()
+                            
+                            Text("Chart functionality removed")
+                                .foregroundColor(.secondary)
+                                .padding()
+                        }
                         .frame(height: 200)
+                        .background(Color.gray.opacity(0.1))
+                        .cornerRadius(12)
                     }
                     
                     // Chart Legend
@@ -261,7 +261,7 @@ struct MoodTrendsView: View {
         let endDate = Date()
         let startDate = calendar.date(byAdding: .day, value: -selectedTimeframe.days, to: endDate) ?? endDate
         
-        return viewModel.moodEntries
+        return dataManager.getMoodEntries()
             .filter { entry in
                 guard let date = entry.createdAt else { return false }
                 return date >= startDate && date <= endDate
@@ -270,7 +270,7 @@ struct MoodTrendsView: View {
             .map { entry in
                 MoodDataPoint(
                     date: entry.createdAt ?? Date(),
-                    moodValue: Double(entry.rating),
+                    moodValue: Double(entry.moodLevel),
                     emoji: entry.emoji ?? "😐"
                 )
             }
@@ -308,7 +308,7 @@ struct MoodTrendsView: View {
     }
     
     private var recentMoodEntries: [MoodEntry] {
-        viewModel.moodEntries
+        dataManager.getMoodEntries()
             .sorted { ($0.createdAt ?? Date.distantPast) > ($1.createdAt ?? Date.distantPast) }
     }
     
@@ -326,48 +326,13 @@ struct MoodTrendsView: View {
 }
 
 // MARK: - Supporting Types
-struct MoodDataPoint {
+struct MoodDataPoint: Identifiable {
+    let id = UUID()
     let date: Date
     let moodValue: Double
     let emoji: String
 }
 
-struct StatCard: View {
-    let title: String
-    let value: String
-    let subtitle: String
-    let icon: String
-    let color: Color
-    
-    var body: some View {
-        FrostedCard(style: .compact) {
-            VStack(alignment: .leading, spacing: 8) {
-                HStack {
-                    Image(systemName: icon)
-                        .font(.title2)
-                        .foregroundColor(color)
-                    
-                    Spacer()
-                }
-                
-                Text(value)
-                    .font(.title2)
-                    .fontWeight(.bold)
-                    .foregroundColor(.primary)
-                
-                Text(title)
-                    .font(.caption)
-                    .fontWeight(.medium)
-                    .foregroundColor(.secondary)
-                
-                Text(subtitle)
-                    .font(.caption2)
-                    .foregroundColor(.secondary)
-            }
-            .padding(12)
-        }
-    }
-}
 
 struct MoodEntryRow: View {
     let moodEntry: MoodEntry
@@ -378,7 +343,7 @@ struct MoodEntryRow: View {
                 .font(.title2)
             
             VStack(alignment: .leading, spacing: 4) {
-                Text("Mood: \(Int(moodEntry.rating))/10")
+                Text("Mood: \(Int(moodEntry.moodLevel))/10")
                     .font(.subheadline)
                     .fontWeight(.medium)
                 
@@ -406,10 +371,7 @@ struct MoodEntryRow: View {
 struct MoodTrendsView_Previews: PreviewProvider {
     static var previews: some View {
         let dataManager = DataManager.shared
-        let encryptionService = EncryptionService.shared
-        let viewModel = JournalViewModel(dataManager: dataManager, encryptionService: encryptionService)
-        
-        MoodTrendsView(viewModel: viewModel)
+        MoodTrendsView(dataManager: dataManager)
     }
 }
 

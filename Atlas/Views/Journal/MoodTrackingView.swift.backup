@@ -1,0 +1,543 @@
+import SwiftUI
+import CoreData
+
+// MARK: - Mood Tracking View
+struct MoodTrackingView: View {
+    @ObservedObject var viewModel: JournalViewModel
+    @State private var selectedMoodLevel = 5
+    @State private var selectedScale = MoodScale.fivePoint
+    @State private var moodNotes = ""
+    @State private var customEmoji = ""
+    @State private var showingMoodHistory = false
+    @State private var moodEntries: [MoodEntry] = []
+    @State private var selectedTimeframe = MoodTimeframe.week
+    @State private var isLoading = false
+    
+    var body: some View {
+        ScrollView {
+            VStack(spacing: 24) {
+                moodEntryCard
+                recentMoodHistorySection
+                moodHistorySection
+            }
+            .padding()
+        }
+        .sheet(isPresented: $showingMoodHistory) {
+            MoodHistoryView(viewModel: viewModel)
+        }
+        .onAppear {
+            selectedMoodLevel = selectedScale == .fivePoint ? 3 : 5
+            loadMoodHistory()
+        }
+        .onChange(of: selectedScale) { _, newScale in
+            selectedMoodLevel = newScale == .fivePoint ? 3 : 5
+        }
+        .onChange(of: selectedTimeframe) { _, _ in
+            loadMoodHistory()
+        }
+    }
+    
+    // MARK: - View Components
+    
+    private var moodEntryCard: some View {
+        VStack(spacing: 20) {
+            Text("How are you feeling?")
+                .font(.title2)
+                .fontWeight(.semibold)
+            
+            scaleSelection
+            moodLevelSelector
+            notesSection
+            saveButton
+        }
+        .padding(20)
+        .background(
+            RoundedRectangle(cornerRadius: 16)
+                .fill(.ultraThinMaterial)
+                .shadow(color: .black.opacity(0.05), radius: 10, x: 0, y: 5)
+        )
+    }
+    
+    private var scaleSelection: some View {
+        Picker("Scale", selection: $selectedScale) {
+            ForEach(MoodScale.allCases, id: \.self) { scale in
+                Text(scale.rawValue.capitalized).tag(scale)
+            }
+        }
+        .pickerStyle(.segmented)
+    }
+    
+    private var moodLevelSelector: some View {
+        VStack(spacing: 16) {
+            Text(selectedScale.emoji(for: selectedMoodLevel))
+                .font(.system(size: 60))
+                .scaleEffect(1.2)
+                .animation(.spring(response: 0.4), value: selectedMoodLevel)
+            
+            Text(selectedScale.description(for: selectedMoodLevel))
+                .font(.headline)
+                .foregroundColor(.primary)
+            
+            Slider(
+                value: Binding(
+                    get: { Double(selectedMoodLevel) },
+                    set: { selectedMoodLevel = Int($0) }
+                ),
+                in: Double(selectedScale.range.lowerBound)...Double(selectedScale.range.upperBound),
+                step: 1
+            )
+            .accentColor(.accentColor)
+            
+            HStack {
+                Text("\(selectedScale.range.lowerBound)")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                
+                Spacer()
+                
+                Text("\(selectedScale.range.upperBound)")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+        }
+    }
+    
+    private var notesSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Notes (Optional)")
+                .font(.subheadline)
+                .fontWeight(.medium)
+            
+            TextField("How are you feeling? What's on your mind?", text: $moodNotes, axis: .vertical)
+                .textFieldStyle(.roundedBorder)
+                .lineLimit(3...6)
+        }
+    }
+    
+    private var saveButton: some View {
+        Button {
+            Task {
+                await viewModel.logMood(
+                    level: selectedMoodLevel,
+                    scale: selectedScale,
+                    notes: moodNotes.isEmpty ? nil : moodNotes
+                )
+                
+                // Reset form
+                moodNotes = ""
+                selectedMoodLevel = selectedScale == .fivePoint ? 3 : 5
+            }
+        } label: {
+            Text("Log Mood")
+                .font(.headline)
+                .foregroundColor(.white)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 12)
+                .background(
+                    RoundedRectangle(cornerRadius: 12)
+                        .fill(Color.accentColor)
+                )
+        }
+        .sensoryFeedback(.impact(flexibility: .soft), trigger: selectedMoodLevel)
+    }
+    
+    private var recentMoodHistorySection: some View {
+        Group {
+            if !viewModel.recentMoodEntries.isEmpty {
+                VStack(alignment: .leading, spacing: 16) {
+                    HStack {
+                        Text("Recent Moods")
+                            .font(.headline)
+                        
+                        Spacer()
+                        
+                        Button("View All") {
+                            showingMoodHistory = true
+                        }
+                        .font(.caption)
+                        .foregroundColor(.accentColor)
+                    }
+                    
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 12) {
+                            ForEach(viewModel.recentMoodEntries.prefix(10)) { moodEntry in
+                                RecentMoodCard(moodEntry: moodEntry)
+                            }
+                        }
+                        .padding(.horizontal)
+                    }
+                }
+        }
+    }
+    
+    private var moodHistorySection: some View {
+        Group {
+            if !moodEntries.isEmpty {
+                VStack(alignment: .leading, spacing: 16) {
+                    HStack {
+                        Text("Mood History")
+                            .font(.headline)
+                        
+                        Spacer()
+                        
+                        Picker("Timeframe", selection: $selectedTimeframe) {
+                            ForEach(MoodTimeframe.allCases, id: \.self) { timeframe in
+                                Text(timeframe.displayName).tag(timeframe)
+                            }
+                        }
+                        .pickerStyle(.menu)
+                    }
+                    
+                    if isLoading {
+                        ProgressView("Loading mood history...")
+                            .frame(height: 100)
+                    } else {
+                        LazyVStack(spacing: 12) {
+                            ForEach(groupedMoodEntries, id: \.0) { date, entries in
+                                VStack(alignment: .leading, spacing: 8) {
+                                    Text(date.formatted(date: .abbreviated, time: .omitted))
+                                        .font(.subheadline)
+                                        .fontWeight(.medium)
+                                        .foregroundColor(.secondary)
+                                    
+                                    ForEach(entries, id: \.objectID) { entry in
+                                        MoodHistoryRow(entry: entry)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+        }
+    }
+    
+    // MARK: - Helper Properties
+    
+    private var groupedMoodEntries: [(Date, [MoodEntry])] {
+        let calendar = Calendar.current
+        let grouped = Dictionary(grouping: moodEntries) { entry in
+            calendar.startOfDay(for: entry.createdAt ?? Date())
+        }
+        
+        return grouped.sorted { $0.key > $1.key }
+    }
+    
+    // MARK: - Methods
+    
+    private func loadMoodHistory() {
+        Task {
+                isLoading = true
+                
+                do {
+                    let repository = DependencyContainer.shared.journalRepository
+                    let entries = try await repository.fetchMoodEntries(dateRange: selectedTimeframe.dateRange)
+                    moodEntries = entries
+                    isLoading = false
+                } catch {
+                    print("Error loading mood history: \(error)")
+                    isLoading = false
+                }
+        }
+    }
+}
+
+// MARK: - Recent Mood Card
+struct RecentMoodCard: View {
+    let moodEntry: MoodEntry
+    
+    private var scale: MoodScale {
+        MoodScale(rawValue: moodEntry.scale ?? "5-point") ?? .fivePoint
+    }
+    
+    var body: some View {
+        VStack(spacing: 8) {
+            Text(moodEntry.emoji ?? scale.emoji(for: Int(moodEntry.moodLevel)))
+                .font(.title)
+            
+            Text(scale.description(for: Int(moodEntry.moodLevel)))
+                .font(.caption)
+                .multilineTextAlignment(.center)
+                .lineLimit(2)
+            
+            Text(moodEntry.createdAt?.formatted(date: .omitted, time: .shortened) ?? "Unknown")
+                .font(.caption2)
+                .foregroundColor(.secondary)
+        }
+        .padding(12)
+        .frame(width: 80)
+        .background(
+            RoundedRectangle(cornerRadius: 12)
+                .fill(Color.secondary.opacity(0.1))
+        )
+    }
+}
+
+// MARK: - Mood History View
+struct MoodHistoryView: View {
+    @ObservedObject var viewModel: JournalViewModel
+    @Environment(\.dismiss) private var dismiss
+    @State private var selectedTimeframe = MoodTimeframe.month
+    @State private var moodEntries: [MoodEntry] = []
+    @State private var isLoading = true
+    
+    var body: some View {
+        NavigationView {
+            VStack(spacing: 0) {
+                // Timeframe Selector
+                VStack(spacing: 12) {
+                    Picker("Timeframe", selection: $selectedTimeframe) {
+                        ForEach(MoodTimeframe.allCases, id: \.self) { timeframe in
+                            Text(timeframe.displayName).tag(timeframe)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+                    .padding(.horizontal)
+                }
+                .padding(.vertical)
+                .background(.ultraThinMaterial)
+                
+                // Mood Entries List
+                if isLoading {
+                    Spacer()
+                    ProgressView("Loading mood history...")
+                    Spacer()
+                } else if moodEntries.isEmpty {
+                    Spacer()
+                    EmptyStateView(
+                        icon: "heart.slash",
+                        title: "No mood entries",
+                        subtitle: "Start tracking your mood to see history",
+                        buttonTitle: "Log Mood",
+                        action: { dismiss() }
+                    )
+                    Spacer()
+                } else {
+                    List {
+                        ForEach(groupedMoodEntries, id: \.0) { date, entries in
+                            Section {
+                                ForEach(entries) { entry in
+                                    MoodHistoryRow(entry: entry)
+                                }
+                            } header: {
+                                Text(date.formatted(date: .complete, time: .omitted))
+                                    .font(.headline)
+                            }
+                        }
+                    }
+                    .listStyle(.insetGrouped)
+                }
+            }
+            .navigationTitle("Mood History")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Done") {
+                        dismiss()
+                    }
+                }
+        }
+        .onAppear {
+            loadMoodHistory()
+        }
+        .onChange(of: selectedTimeframe) { _, _ in
+            loadMoodHistory()
+        }
+    }
+    
+    private var groupedMoodEntries: [(Date, [MoodEntry])] {
+        let calendar = Calendar.current
+        let grouped = Dictionary(grouping: moodEntries) { entry in
+            calendar.startOfDay(for: entry.createdAt ?? Date())
+        }
+        
+        return grouped.sorted { $0.key > $1.key }
+    }
+    
+    private func loadMoodHistory() {
+        Task {
+                isLoading = true
+                
+                do {
+                    let repository = DependencyContainer.shared.journalRepository
+                    let entries = try await repository.fetchMoodEntries(dateRange: selectedTimeframe.dateRange)
+                    moodEntries = entries
+                    isLoading = false
+                } catch {
+                    print("Error loading mood history: \(error)")
+                    isLoading = false
+                }
+        }
+    }
+}
+
+// MARK: - Mood History Row
+struct MoodHistoryRow: View {
+    let entry: MoodEntry
+    
+    private var scale: MoodScale {
+        MoodScale(rawValue: entry.scale ?? "5-point") ?? .fivePoint
+    }
+    
+    var body: some View {
+        HStack(spacing: 12) {
+            // Mood Emoji and Level
+            VStack(spacing: 4) {
+                Text(entry.emoji ?? scale.emoji(for: Int(entry.moodLevel)))
+                    .font(.title2)
+                
+                Text("\(entry.moodLevel)")
+                    .font(.caption)
+                    .fontWeight(.semibold)
+                    .foregroundColor(.secondary)
+            }
+            .frame(width: 50)
+            
+            // Content
+            VStack(alignment: .leading, spacing: 4) {
+                Text(scale.description(for: Int(entry.moodLevel)))
+                    .font(.subheadline)
+                    .fontWeight(.medium)
+                
+                if let notes = entry.notes, !notes.isEmpty {
+                    Text(notes)
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                        .lineLimit(2)
+                }
+                
+                Text(entry.createdAt?.formatted(date: .omitted, time: .shortened) ?? "Unknown")
+                    .font(.caption2)
+                    .foregroundColor(.secondary)
+            }
+            
+            Spacer()
+        }
+        .padding(.vertical, 4)
+    }
+}
+
+// MARK: - Mood History View
+struct MoodHistoryView: View {
+    @ObservedObject var viewModel: JournalViewModel
+    @Environment(\.dismiss) private var dismiss
+    @State private var selectedTimeframe = MoodTimeframe.month
+    @State private var moodEntries: [MoodEntry] = []
+    @State private var isLoading = false
+    
+    var body: some View {
+        NavigationView {
+            VStack(spacing: 20) {
+                if isLoading {
+                    ProgressView("Loading mood history...")
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                } else if moodEntries.isEmpty {
+                    EmptyStateView(
+                        icon: "chart.line.uptrend.xyaxis",
+                        title: "No mood data",
+                        subtitle: "Start logging your moods to see your history here",
+                        buttonTitle: "Log First Mood",
+                        action: { dismiss() }
+                    )
+                } else {
+                    ScrollView {
+                        LazyVStack(spacing: 16) {
+                            ForEach(groupedMoodEntries, id: \.0) { date, entries in
+                                MoodHistoryDaySection(date: date, entries: entries)
+                            }
+                        }
+                        .padding()
+                    }
+                }
+            }
+            .navigationTitle("Mood History")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Done") {
+                        dismiss()
+                    }
+                }
+            }
+        }
+        .onAppear {
+            loadMoodHistory()
+        }
+    }
+    
+    private var groupedMoodEntries: [(Date, [MoodEntry])] {
+        let calendar = Calendar.current
+        let grouped = Dictionary(grouping: moodEntries) { entry in
+            calendar.startOfDay(for: entry.createdAt ?? Date())
+        }
+        return grouped.sorted { $0.key > $1.key }
+    }
+    
+    private func loadMoodHistory() {
+        Task {
+            isLoading = true
+            defer { isLoading = false }
+            
+            do {
+                let repository = DependencyContainer.shared.journalRepository
+                moodEntries = try repository.fetchMoodEntries(dateRange: nil)
+            } catch {
+                print("Error loading mood history: \(error)")
+            }
+        }
+    }
+}
+
+// MARK: - Mood History Day Section
+struct MoodHistoryDaySection: View {
+    let date: Date
+    let entries: [MoodEntry]
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text(date.formatted(date: .complete, time: .omitted))
+                .font(.headline)
+                .foregroundColor(.primary)
+            
+            ForEach(entries, id: \.id) { entry in
+                MoodHistoryEntryRow(entry: entry)
+            }
+        }
+        .padding()
+        .background(
+            RoundedRectangle(cornerRadius: 12)
+                .fill(.ultraThinMaterial)
+                .shadow(color: .black.opacity(0.05), radius: 5, x: 0, y: 2)
+        )
+    }
+}
+
+// MARK: - Mood History Entry Row
+struct MoodHistoryEntryRow: View {
+    let entry: MoodEntry
+    
+    var body: some View {
+        HStack(spacing: 12) {
+            Text(entry.emoji ?? "😐")
+                .font(.title2)
+            
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Level \(entry.moodLevel)")
+                    .font(.subheadline)
+                    .fontWeight(.medium)
+                
+                if let notes = entry.notes, !notes.isEmpty {
+                    Text(notes)
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                        .lineLimit(2)
+                }
+                
+                Text(entry.createdAt?.formatted(date: .omitted, time: .shortened) ?? "Unknown")
+                    .font(.caption2)
+                    .foregroundColor(.secondary)
+            }
+            
+            Spacer()
+        }
+        .padding(.vertical, 4)
+    }
+}

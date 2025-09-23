@@ -7,7 +7,7 @@ final class SecurityManager: ObservableObject {
     static let shared = SecurityManager()
     
     // MARK: - Services
-    private let _encryptionService = EncryptionService.shared
+    private let _encryptionService = EncryptionService()
     private let biometricService = BiometricService.shared
     
     // MARK: - Public Accessors
@@ -40,7 +40,7 @@ final class SecurityManager: ObservableObject {
     // MARK: - Setup
     private func setupSecurity() {
         // Check if encryption is available
-        if encryptionService.isEncryptionAvailable {
+        if encryptionEnabled {
             securityLevel = biometricService.isBiometricAvailable ? .full : .encryptionOnly
             isSecurityEnabled = true
         } else {
@@ -165,7 +165,7 @@ final class SecurityManager: ObservableObject {
     }
     
     private func updateSecurityLevel() {
-        if encryptionEnabled && encryptionService.isEncryptionAvailable {
+        if encryptionEnabled {
             securityLevel = biometricService.isBiometricAvailable ? .full : .encryptionOnly
         } else {
             securityLevel = .none

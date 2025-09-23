@@ -4,7 +4,7 @@ struct SwipeMenuView: View {
     @Binding var isOpen: Bool
     @Binding var selectedView: AppView
     @EnvironmentObject private var dataManager: DataManager
-    @EnvironmentObject private var encryptionService: EncryptionService
+    @EnvironmentObject private var dependencyContainer: DependencyContainer
     
     // Menu configuration
     private let menuWidth: CGFloat = UIScreen.main.bounds.width * 0.6
@@ -13,11 +13,9 @@ struct SwipeMenuView: View {
     // Navigation items
     private let navigationItems: [(AppView, String, String)] = [
         (.dashboard, "house.fill", "Dashboard"),
-        (.tasks, "checkmark.circle", "Tasks"),
-        (.journal, "book.fill", "Journal"),
         (.notes, "doc.text", "Notes"),
-        (.calendar, "calendar", "Calendar"),
-        (.analytics, "chart.bar.fill", "Analytics"),
+        (.journal, "book.pages", "Journal"),
+        (.tasks, "checkmark.circle", "Tasks"),
         (.watchlist, "tv", "Watchlist"),
         (.recipes, "fork.knife", "Recipes"),
         (.mindMapping, "brain.head.profile", "Mind Mapping"),
@@ -249,6 +247,6 @@ struct NavigationMenuRow: View {
         selectedView: .constant(.dashboard)
     )
     .environmentObject(DataManager.shared)
-    .environmentObject(EncryptionService.shared)
+        .environmentObject(DependencyContainer.shared)
 }
 

@@ -2,7 +2,7 @@ import SwiftUI
 
 // MARK: - Tag Management View
 struct TagManagementView: View {
-    @StateObject private var notesService = NotesService.shared
+    @EnvironmentObject private var notesService: NotesService
     @Environment(\.dismiss) private var dismiss
     
     @State private var newTagName = ""
@@ -190,7 +190,7 @@ struct TagManagementView: View {
 // MARK: - Tag Row View
 struct TagRowView: View {
     let tag: NoteTag
-    @StateObject private var notesService = NotesService.shared
+    @EnvironmentObject private var notesService: NotesService
     @State private var showingEditSheet = false
     @State private var editName = ""
     @State private var editColor = ""
@@ -213,7 +213,7 @@ struct TagRowView: View {
                     .font(AtlasTheme.Typography.headline)
                     .foregroundColor(AtlasTheme.Colors.text)
                 
-                Text("\(tag.note?.title != nil ? "1" : "0") notes")
+                Text("\(tag.notes?.count ?? 0) notes")
                     .font(AtlasTheme.Typography.caption)
                     .foregroundColor(AtlasTheme.Colors.tertiaryText)
             }

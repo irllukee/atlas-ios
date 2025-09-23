@@ -40,6 +40,32 @@ final class DataManager: ObservableObject {
         objectWillChange.send()
     }
     
+    // MARK: - Mood Operations
+    func getMoodEntries() -> [MoodEntry] {
+        let request: NSFetchRequest<MoodEntry> = MoodEntry.fetchRequest()
+        request.sortDescriptors = [NSSortDescriptor(keyPath: \MoodEntry.createdAt, ascending: false)]
+        
+        do {
+            return try coreDataStack.viewContext.fetch(request)
+        } catch {
+            handleError(error)
+            return []
+        }
+    }
+    
+    func createMoodEntry(moodLevel: Int16, scale: String = "5-point", emoji: String, notes: String?) {
+        let context = coreDataStack.viewContext
+        let moodEntry = MoodEntry(context: context)
+        moodEntry.moodLevel = moodLevel
+        moodEntry.scale = scale
+        moodEntry.emoji = emoji
+        moodEntry.notes = notes
+        moodEntry.createdAt = Date()
+        moodEntry.updatedAt = Date()
+        
+        save()
+    }
+    
     // MARK: - Error Handling
     func clearError() {
         lastError = nil

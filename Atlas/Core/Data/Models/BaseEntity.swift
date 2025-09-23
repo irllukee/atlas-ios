@@ -28,7 +28,12 @@ extension BaseEntity {
 
 /// CoreData entity extensions - only for entities that have the required properties
 extension Note: BaseEntity {}
-extension Task: BaseEntity {}
+extension Task: BaseEntity {
+    var uuid: UUID? {
+        get { id }
+        set { if let newValue = newValue { id = newValue } }
+    }
+}
 extension JournalEntry: BaseEntity {}
 
 // MARK: - Entity Validation
@@ -75,8 +80,7 @@ extension Task {
         task.createdAt = Date()
         task.updatedAt = Date()
         task.isCompleted = false
-        task.priority = 1
-        task.isRecurring = false
+        task.priority = TaskPriority.medium.rawValue
         return task
     }
     
@@ -103,7 +107,7 @@ extension Task {
             self.notes = notes
         }
         if let priority = priority {
-            self.priority = priority
+            self.priority = String(priority)
         }
         if let dueDate = dueDate {
             self.dueDate = dueDate
@@ -114,25 +118,29 @@ extension Task {
 
 extension JournalEntry {
     /// Create a new journal entry with default values
-    static func create(context: NSManagedObjectContext, content: String, prompt: String? = nil) -> JournalEntry {
+    static func create(context: NSManagedObjectContext, content: String, title: String? = nil, type: String = "daily") -> JournalEntry {
         let entry = JournalEntry(context: context)
         entry.uuid = UUID()
         entry.content = content
-        entry.prompt = prompt
+        entry.title = title
+        entry.type = type
         entry.createdAt = Date()
         entry.updatedAt = Date()
         entry.isEncrypted = false
-        entry.gratitudeEntries = ""
+        entry.wordCount = Int32(content.components(separatedBy: .whitespacesAndNewlines).filter { !$0.isEmpty }.count)
+        entry.readingTime = Int32(max(1, entry.wordCount / 200)) // Assume 200 words per minute
         return entry
     }
     
     /// Update journal entry content
-    func update(content: String? = nil, gratitudeEntries: String? = nil) {
+    func update(content: String? = nil, title: String? = nil) {
         if let content = content {
             self.content = content
+            self.wordCount = Int32(content.components(separatedBy: .whitespacesAndNewlines).filter { !$0.isEmpty }.count)
+            self.readingTime = Int32(max(1, self.wordCount / 200))
         }
-        if let gratitudeEntries = gratitudeEntries {
-            self.gratitudeEntries = gratitudeEntries
+        if let title = title {
+            self.title = title
         }
         self.updatedAt = Date()
     }
@@ -140,20 +148,25 @@ extension JournalEntry {
 
 extension MoodEntry {
     /// Create a new mood entry with default values
-    static func create(context: NSManagedObjectContext, rating: Int16, emoji: String? = nil, notes: String? = nil) -> MoodEntry {
+    static func create(context: NSManagedObjectContext, moodLevel: Int16, scale: String = "5-point", emoji: String? = nil, notes: String? = nil) -> MoodEntry {
         let entry = MoodEntry(context: context)
         entry.uuid = UUID()
-        entry.rating = rating
+        entry.moodLevel = moodLevel
+        entry.scale = scale
         entry.emoji = emoji
         entry.notes = notes
         entry.createdAt = Date()
+        entry.updatedAt = Date()
         return entry
     }
     
     /// Update mood entry
-    func update(rating: Int16? = nil, emoji: String? = nil, notes: String? = nil) {
-        if let rating = rating {
-            self.rating = rating
+    func update(moodLevel: Int16? = nil, scale: String? = nil, emoji: String? = nil, notes: String? = nil) {
+        if let moodLevel = moodLevel {
+            self.moodLevel = moodLevel
+        }
+        if let scale = scale {
+            self.scale = scale
         }
         if let emoji = emoji {
             self.emoji = emoji
@@ -161,5 +174,6 @@ extension MoodEntry {
         if let notes = notes {
             self.notes = notes
         }
+        self.updatedAt = Date()
     }
 }

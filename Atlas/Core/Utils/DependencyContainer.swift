@@ -8,7 +8,29 @@ final class DependencyContainer: ObservableObject {
     
     private var dependencies: [String: Any] = [:]
     
-    private init() {}
+    // Core Data Stack
+    let coreDataStack: CoreDataStack
+    
+    private init() {
+        self.coreDataStack = CoreDataStack.shared
+        setupDependencies()
+    }
+    
+    private func setupDependencies() {
+        // Register Core Data Stack
+        register(CoreDataStack.self, instance: coreDataStack)
+        
+        // Register Encryption Service
+        register(EncryptionServiceProtocol.self, instance: EncryptionService())
+        
+        // Register Journal Repository
+        register(JournalRepositoryProtocol.self) {
+            JournalRepository(
+                coreDataStack: self.coreDataStack,
+                encryptionService: self.resolve(EncryptionServiceProtocol.self)!
+            )
+        }
+    }
     
     // MARK: - Registration
     func register<T>(_ type: T.Type, instance: T) {
@@ -41,6 +63,11 @@ final class DependencyContainer: ObservableObject {
             throw DependencyError.notRegistered
         }
         return instance
+    }
+    
+    // MARK: - Convenience Properties
+    var journalRepository: JournalRepositoryProtocol {
+        return resolve(JournalRepositoryProtocol.self)!
     }
 }
 

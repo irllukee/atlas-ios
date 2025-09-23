@@ -68,23 +68,23 @@ struct PersistenceController {
         
         // Create sample tasks
         let task1 = Task(context: context)
-        task1.uuid = UUID()
+        task1.id = UUID()
         task1.title = "Complete project documentation"
         task1.notes = "Update the README and API documentation"
         task1.createdAt = Date()
         task1.updatedAt = Date()
         task1.isCompleted = false
-        task1.priority = 2
+        task1.priority = "High"
         task1.dueDate = Calendar.current.date(byAdding: .day, value: 3, to: Date())
         
         let task2 = Task(context: context)
-        task2.uuid = UUID()
+        task2.id = UUID()
         task2.title = "Review code changes"
         task2.notes = "Review the latest pull requests"
         task2.createdAt = Calendar.current.date(byAdding: .day, value: -1, to: Date())
         task2.updatedAt = Calendar.current.date(byAdding: .day, value: -1, to: Date())
         task2.isCompleted = true
         task2.completedAt = Date()
-        task2.priority = 1
+        task2.priority = "Medium"
     }
 }
