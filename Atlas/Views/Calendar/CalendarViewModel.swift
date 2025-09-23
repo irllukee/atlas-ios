@@ -68,15 +68,20 @@ class CalendarViewModel: ObservableObject {
     
     /// Request calendar permissions
     func requestCalendarAccess() async {
+        print("📅 CalendarViewModel: Requesting calendar access...")
         let granted = await calendarService.requestCalendarAccess()
+        print("📅 CalendarViewModel: Permission granted: \(granted)")
         if granted {
             selectedCalendar = calendarService.getDefaultCalendar()
+            print("📅 CalendarViewModel: Selected calendar: \(selectedCalendar?.title ?? "None")")
         }
     }
     
     /// Load events for the selected date
     func loadEventsForDate(_ date: Date) {
+        print("📅 CalendarViewModel: Loading events for date: \(date)")
         calendarService.loadEventsForDate(date)
+        print("📅 CalendarViewModel: Events loaded: \(events.count) events")
     }
     
     /// Load events for the current week

@@ -35,17 +35,49 @@ class TabbedTasksViewModel: ObservableObject {
     // MARK: - Tab Management
     
     func loadTabs() {
+        print("📋 TabbedTasksViewModel: Loading tabs...")
         let request: NSFetchRequest<TaskTab> = TaskTab.fetchRequest()
         request.sortDescriptors = [NSSortDescriptor(keyPath: \TaskTab.order, ascending: true)]
         
         do {
             tabs = try dataManager.coreDataStack.viewContext.fetch(request)
-            if selectedTab == nil && !tabs.isEmpty {
-                selectedTab = tabs.first
+            print("📋 TabbedTasksViewModel: Loaded \(tabs.count) tabs")
+            
+            // Create default tab if none exist
+            if tabs.isEmpty {
+                print("📋 TabbedTasksViewModel: No tabs found, creating default tab...")
+                createDefaultTab()
+            } else {
+                if selectedTab == nil {
+                    selectedTab = tabs.first
+                    print("📋 TabbedTasksViewModel: Selected first tab: \(selectedTab?.name ?? "Unknown")")
+                }
+                loadTasksForSelectedTab()
             }
-            loadTasksForSelectedTab()
         } catch {
+            print("❌ TabbedTasksViewModel: Failed to load tabs: \(error.localizedDescription)")
             errorMessage = "Failed to load tabs: \(error.localizedDescription)"
+        }
+    }
+    
+    private func createDefaultTab() {
+        print("📋 TabbedTasksViewModel: Creating default tab...")
+        let defaultTab = TaskTab(context: dataManager.coreDataStack.viewContext)
+        defaultTab.id = UUID()
+        defaultTab.name = "My Tasks"
+        defaultTab.color = "blue"
+        defaultTab.icon = "checklist"
+        defaultTab.order = 0
+        defaultTab.createdAt = Date()
+        defaultTab.updatedAt = Date()
+        
+        do {
+            try dataManager.coreDataStack.viewContext.save()
+            print("📋 TabbedTasksViewModel: Default tab created successfully")
+            loadTabs() // Reload tabs after creating default
+        } catch {
+            print("❌ TabbedTasksViewModel: Failed to create default tab: \(error.localizedDescription)")
+            errorMessage = "Failed to create default tab: \(error.localizedDescription)"
         }
     }
     
@@ -133,13 +165,16 @@ class TabbedTasksViewModel: ObservableObject {
     // MARK: - Task Management
     
     func loadTasksForSelectedTab() {
+        print("📋 TabbedTasksViewModel: Loading tasks for selected tab...")
         guard let selectedTab = selectedTab else {
+            print("📋 TabbedTasksViewModel: No tab selected")
             tasks = []
             filteredTasks = []
             return
         }
         
         tasks = selectedTab.tasksArray
+        print("📋 TabbedTasksViewModel: Loaded \(tasks.count) tasks for tab: \(selectedTab.name ?? "Unknown")")
         filterTasks()
     }
     

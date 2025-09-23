@@ -11,7 +11,6 @@ struct RecipesView: View {
     @State private var showCreateRecipe = false
     @State private var showShoppingList = false
     @State private var showTemplates = false
-    @State private var showTests = false
     @State private var recipes: [Recipe] = []
     
     init() {
@@ -49,11 +48,6 @@ struct RecipesView: View {
         .sheet(isPresented: $showTemplates) {
             TemplateManagementView(recipesService: recipesService)
         }
-        #if DEBUG
-        .sheet(isPresented: $showTests) {
-            RecipeTestView()
-        }
-        #endif
         .onAppear {
             loadRecipes()
         }
@@ -109,15 +103,6 @@ struct RecipesView: View {
                         .foregroundColor(AtlasTheme.Colors.text)
                 }
                 
-                #if DEBUG
-                Button(action: {
-                    showTests = true
-                }) {
-                    Image(systemName: "checkmark.circle")
-                        .font(.title2)
-                        .foregroundColor(.orange)
-                }
-                #endif
                 
                 Button(action: {
                     showCreateRecipe = true

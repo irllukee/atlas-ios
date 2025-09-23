@@ -1,5 +1,6 @@
 import SwiftUI
 import EventKit
+import _Concurrency
 
 struct CalendarView: View {
     @StateObject private var viewModel = CalendarViewModel()
@@ -28,8 +29,10 @@ struct CalendarView: View {
                     }
                 }
                 .onAppear {
+                    print("📅 CalendarView appeared - Permission status: \(viewModel.permissionStatus)")
                     // Request permission when view appears if not determined
                     if viewModel.permissionStatus == .notDetermined {
+                        print("📅 Requesting calendar access...")
                         _Concurrency.Task {
                             await viewModel.requestCalendarAccess()
                         }

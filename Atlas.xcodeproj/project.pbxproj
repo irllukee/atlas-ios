@@ -427,6 +427,7 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				HEADER_SEARCH_PATHS = "$(SDKROOT)/usr/include/libxml2/";
 				INFOPLIST_FILE = Atlas/Info.plist;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.productivity";
 				INFOPLIST_KEY_NSCalendarsUsageDescription = "Atlas integrates with your calendar to display today's events and help you plan your day.";
 				INFOPLIST_KEY_NSRemindersUsageDescription = "Atlas can create reminders for your tasks and important events to help you stay organized.";
 				INFOPLIST_KEY_NSUserNotificationsUsageDescription = "Atlas sends notifications for task reminders and important updates to help you stay on track.";
@@ -461,6 +462,7 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				HEADER_SEARCH_PATHS = "$(SDKROOT)/usr/include/libxml2/";
 				INFOPLIST_FILE = Atlas/Info.plist;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.productivity";
 				INFOPLIST_KEY_NSCalendarsUsageDescription = "Atlas integrates with your calendar to display today's events and help you plan your day.";
 				INFOPLIST_KEY_NSRemindersUsageDescription = "Atlas can create reminders for your tasks and important events to help you stay organized.";
 				INFOPLIST_KEY_NSUserNotificationsUsageDescription = "Atlas sends notifications for task reminders and important updates to help you stay on track.";

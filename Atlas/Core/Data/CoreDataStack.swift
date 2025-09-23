@@ -9,6 +9,7 @@ final class CoreDataStack {
     let persistentContainer: NSPersistentContainer
 
     private init() {
+        print("📋 CoreDataStack: Initializing...")
         // Use regular NSPersistentContainer for local storage only
         persistentContainer = NSPersistentContainer(name: "Atlas")
 
@@ -51,6 +52,10 @@ final class CoreDataStack {
 
     var viewContext: NSManagedObjectContext {
         return persistentContainer.viewContext
+    }
+    
+    func newBackgroundContext() -> NSManagedObjectContext {
+        return persistentContainer.newBackgroundContext()
     }
 
     func newDerivedContext() -> NSManagedObjectContext {

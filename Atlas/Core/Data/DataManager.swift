@@ -20,8 +20,10 @@ final class DataManager: ObservableObject {
     
     // MARK: - Initialization
     private init() {
+        print("📋 DataManager: Initializing...")
         self.coreDataStack = CoreDataStack.shared
         self.taskRepository = TaskRepository(context: coreDataStack.viewContext)
+        print("📋 DataManager: CoreDataStack and TaskRepository initialized")
         
         // Validate data integrity on startup
         validateDataIntegrity()
