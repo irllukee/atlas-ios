@@ -22,6 +22,10 @@ struct FocusView: View {
 
     var body: some View {
         ZStack {
+            // Space background
+            SpaceBackgroundView()
+            
+            // Glass overlay for depth
             GlassBackgroundView(parallaxOffset: cameraOffsetForParallax)
             
             VStack(spacing: 0) {

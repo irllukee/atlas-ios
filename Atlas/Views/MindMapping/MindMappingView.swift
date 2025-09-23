@@ -18,6 +18,9 @@ struct MindMappingView: View {
     var body: some View {
         NavigationStack(path: $navigationPath) {
             ZStack {
+                // Space background
+                SpaceBackgroundView()
+                
                 Group {
                     if let root = rootNodes.first {
                         FocusView(node: root, navigationPath: $navigationPath, dataManager: dataManager)
