@@ -587,7 +587,7 @@ struct NoteCardView: View {
             .padding(.vertical, 2)
             .background(
                 RoundedRectangle(cornerRadius: 4)
-                    .fill(Color(hex: color) ?? AtlasTheme.Colors.primary)
+                    .fill(AtlasTheme.Colors.primary)
             )
     }
     
@@ -599,7 +599,7 @@ struct NoteCardView: View {
             .padding(.vertical, 2)
             .background(
                 RoundedRectangle(cornerRadius: 4)
-                    .fill(Color(hex: color) ?? AtlasTheme.Colors.secondary)
+                    .fill(AtlasTheme.Colors.secondary)
             )
     }
     
@@ -615,7 +615,7 @@ struct NoteCardView: View {
     
     private var noteColor: Color {
         if let folder = note.folder, let colorString = folder.color {
-            return Color(hex: colorString) ?? AtlasTheme.Colors.primary
+            return AtlasTheme.Colors.primary
         }
         return AtlasTheme.Colors.primary
     }
@@ -718,7 +718,7 @@ struct MoveToFolderView: View {
                         }) {
                             HStack {
                                 Circle()
-                                    .fill(Color(hex: folder.color ?? "#007AFF") ?? AtlasTheme.Colors.primary)
+                                    .fill(AtlasTheme.Colors.primary)
                                     .frame(width: 12, height: 12)
                                 
                                 Text(folder.name ?? "Unnamed Folder")

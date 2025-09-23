@@ -1,7 +1,6 @@
 import SwiftUI
 
 struct SpaceBackgroundView: View {
-    @State private var animationOffset: CGFloat = 0
     
     var body: some View {
         GeometryReader { geometry in
@@ -35,8 +34,8 @@ struct SpaceBackgroundView: View {
                         )
                         .frame(width: 300, height: 300)
                         .offset(
-                            x: CGFloat(index * 200 - 200) + animationOffset * 0.1,
-                            y: CGFloat(index * 150 - 150) + animationOffset * 0.05
+                            x: CGFloat(index * 200 - 200),
+                            y: CGFloat(index * 150 - 150)
                         )
                         .blur(radius: 20)
                 }
@@ -76,22 +75,12 @@ struct SpaceBackgroundView: View {
                         .frame(width: 2, height: 1)
                         .rotationEffect(.degrees(45))
                         .offset(
-                            x: CGFloat(index * 200 - 100) + animationOffset * 0.3,
-                            y: CGFloat(index * 150 - 75) + animationOffset * 0.2
+                            x: CGFloat(index * 200 - 100),
+                            y: CGFloat(index * 150 - 75)
                         )
-                        .opacity(animationOffset.truncatingRemainder(dividingBy: 1000) < 50 ? 1 : 0)
+                        .opacity(0.3)
                 }
             }
-        }
-        .onAppear {
-            startAnimations()
-        }
-    }
-    
-    private func startAnimations() {
-        // Very slow, smooth movement - much slower and smoother
-        withAnimation(.linear(duration: 300).repeatForever(autoreverses: false)) {
-            animationOffset = 1000
         }
     }
 }

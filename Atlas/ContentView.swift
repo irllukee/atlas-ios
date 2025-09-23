@@ -76,10 +76,7 @@ struct ContentView: View {
             // Configure navigation bar to prevent white backgrounds during transitions
             configureNavigationBar()
             
-            // Log performance metrics periodically
-            DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
-                dataManager.logPerformanceMetrics()
-            }
+            // Removed performance metrics logging
         }
         .sheet(isPresented: $showingProfilePictureEditor) {
             ProfilePictureEditorView()

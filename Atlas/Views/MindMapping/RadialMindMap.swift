@@ -21,6 +21,7 @@ struct RadialMindMap: View {
     var onFocusChild: (Node) -> Void
     var onEditNote: (Node) -> Void
     var onRename: (Node) -> Void
+    var onAddChild: (Node) -> Void
     var onCameraChanged: (CGSize) -> Void
     var navigationPath: Binding<NavigationPath>
     var dataManager: DataManager
@@ -30,7 +31,17 @@ struct RadialMindMap: View {
     @State private var offset: CGSize = .zero
     @GestureState private var dragOffset: CGSize = .zero
     @State private var lastPanVelocity: CGSize = .zero
-    @State private var isFitting = true
+    // Removed isFitting to prevent auto-reset conflicts
+    @State private var isAnimating = false
+    @State private var animationID: UUID = UUID()
+    @State private var pendingAnimation: (() -> Void)?
+    @State private var cameraUpdateTimer: Timer?
+    
+    // Debugger for freeze detection
+    private let debugger = MindMappingDebugger.shared
+    
+    // Animation tracking
+    @State private var activeAnimationCount = 0
 
     @State private var layoutCache = RingLayout()
     @State private var draggingNodeID: UUID?
@@ -63,27 +74,27 @@ struct RadialMindMap: View {
                 BubbleView(
                     title: center.title ?? "Untitled",
                     hasNote: !(center.note ?? "").isEmpty,
-                    isCenter: true,
-                    iconName: center.iconName,
-                    colorHex: center.colorHex
+                    isCenter: true
                 )
                 .frame(width: bubbleSize(for: size, isCenter: true),
                        height: bubbleSize(for: size, isCenter: true))
                 .position(applyCamera(to: CGPoint(x: size.width/2, y: size.height/2)))
-                .onTapGesture { 
-                    print("Center node tapped: \(center.title ?? "unknown")")
-                    onEditNote(center) 
+                .onTapGesture(count: 2) { 
+                    debugger.recordInteraction("Center node double tap")
+                    debugger.log("🎯 Center node double-tap detected", category: .interaction)
+                    // Use async dispatch to prevent blocking the UI
+                    DispatchQueue.main.async {
+                        onEditNote(center)
+                    }
                 }
                 .contextMenu {
                     Button("Add Child", systemImage: "plus") {
-                        let newChild = addChild(to: center)
-                        onFocusChild(newChild)
-                        navigationPath.wrappedValue.append(newChild)
+                        onAddChild(center)
                     }
                     Button("Rename", systemImage: "pencil") { 
                         onRename(center) 
                     }
-                    Button("Edit Note", systemImage: "note.text") { 
+                    Button("Show Note", systemImage: "note.text") { 
                         onEditNote(center) 
                     }
                 }
@@ -97,27 +108,38 @@ struct RadialMindMap: View {
                         BubbleView(
                             title: child.title ?? "Untitled",
                             hasNote: !(child.note ?? "").isEmpty,
-                            isCenter: false,
-                            iconName: child.iconName,
-                            colorHex: child.colorHex
+                            isCenter: false
                         )
                         .frame(width: pos.size, height: pos.size)
                         .position(applyCamera(to: pos.center))
                         .onTapGesture(count: 1) {
-                            print("Child node tapped: \(child.title ?? "unknown")")
-                            onFocusChild(child)
-                            navigationPath.wrappedValue.append(child)
+                            debugger.recordInteraction("Child node single tap", metadata: ["nodeTitle": child.title ?? "unknown"])
+                            debugger.log("👆 Child node single-tap: \(child.title ?? "unknown")", category: .interaction)
+                            // Use async dispatch to prevent blocking the UI
+                            DispatchQueue.main.async {
+                                onFocusChild(child)
+                                navigationPath.wrappedValue.append(child)
+                            }
+                        }
+                        .onTapGesture(count: 2) {
+                            debugger.recordInteraction("Child node double tap", metadata: ["nodeTitle": child.title ?? "unknown"])
+                            debugger.log("🎯 Child node double-tap: \(child.title ?? "unknown")", category: .interaction)
+                            debugger.log("📝 About to call onEditNote", category: .interaction)
+                            // Use async dispatch to prevent blocking the UI
+                            DispatchQueue.main.async {
+                                debugger.log("📝 Calling onEditNote for: \(child.title ?? "unknown")", category: .interaction)
+                                onEditNote(child)
+                                debugger.log("✅ onEditNote completed for: \(child.title ?? "unknown")", category: .interaction)
+                            }
                         }
                         .contextMenu {
                             Button("Add Sub-idea", systemImage: "plus") {
-                                let newChild = addChild(to: child)
-                                onFocusChild(newChild)
-                                navigationPath.wrappedValue.append(newChild)
+                                onAddChild(child)
                             }
                             Button("Rename", systemImage: "pencil") { 
                                 onRename(child) 
                             }
-                            Button("Edit Note", systemImage: "note.text") { 
+                            Button("Show Note", systemImage: "note.text") { 
                                 onEditNote(child) 
                             }
                             Divider()
@@ -142,56 +164,150 @@ struct RadialMindMap: View {
             .scaleEffect(scale, anchor: .center)
             .offset(x: offset.width + dragOffset.width, y: offset.height + dragOffset.height)
             .contentShape(Rectangle())
-            .gesture(gestures(in: size).exclusively(before: TapGesture()))
+            .gesture(gestures(in: size))
             .onChange(of: children.count) { _, _ in
                 layoutCache = computeLayout(for: size)
-                if isFitting { zoomToFit(in: size) }
+                // Removed auto-reset zoomToFit to prevent conflicts
+            }
+            .onDisappear {
+                cameraUpdateTimer?.invalidate()
+                cameraUpdateTimer = nil
             }
             .onAppear {
                 layoutCache = computeLayout(for: size)
-                zoomToFit(in: size)
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) { 
-                    isFitting = false 
-                }
+                debugger.log("🎯 RadialMindMap appeared", category: .general, metadata: [
+                    "centerNode": center.title ?? "unknown",
+                    "childrenCount": children.count,
+                    "debuggerEnabled": debugger.isEnabled
+                ])
+                // Removed auto zoomToFit to prevent conflicts - user can double-tap to fit
             }
             .onChange(of: size) { _, _ in 
                 layoutCache = computeLayout(for: size) 
             }
-            .simultaneousGesture(
-                TapGesture(count: 2).onEnded { 
-                    zoomToFit(in: size) 
+            // Removed duplicate double tap gesture - handled in gestures() function
+            .onChange(of: offset) { oldVal, newVal in 
+                debugger.log("📍 Offset changed", category: .animation, metadata: [
+                    "oldOffset": "\(oldVal)",
+                    "newOffset": "\(newVal)",
+                    "isAnimating": isAnimating
+                ])
+                // Only update camera if not currently animating to prevent conflicts
+                guard !isAnimating else { 
+                    debugger.log("⏸️ Skipping offset update - animation in progress", category: .animation)
+                    return 
                 }
-            )
-            .onChange(of: offset) { _, newVal in 
-                onCameraChanged(newVal) 
-            }
-            .onChange(of: dragOffset) { _, _ in
-                onCameraChanged(CGSize(
-                    width: offset.width + dragOffset.width,
-                    height: offset.height + dragOffset.height
-                ))
+                updateCameraDebounced(newVal)
             }
         }
     }
 
-    // MARK: - Helper Methods
+    // MARK: - Camera Update Management
     
-    private func addChild(to parent: Node) -> Node {
-        let child = Node(context: viewContext)
-        child.uuid = UUID()
-        child.title = "New Idea"
-        child.createdAt = Date()
-        child.updatedAt = Date()
-        child.parent = parent
+    /// Debounced camera update to prevent multiple updates per frame
+    private func updateCameraDebounced(_ newOffset: CGSize) {
+        debugger.log("🔄 Camera update debounced", category: .animation, metadata: [
+            "newOffset": "\(newOffset)",
+            "timerExists": cameraUpdateTimer != nil
+        ])
+        // Cancel existing timer
+        cameraUpdateTimer?.invalidate()
         
-        do {
-            try viewContext.save()
-        } catch {
-            print("Failed to add child: \(error)")
+        // Set new timer with debounce delay
+        cameraUpdateTimer = Timer.scheduledTimer(withTimeInterval: 0.016, repeats: false) { _ in
+            DispatchQueue.main.async {
+                debugger.log("🎥 Camera update executed", category: .animation, metadata: [
+                    "finalOffset": "\(newOffset)"
+                ])
+                self.onCameraChanged(newOffset)
+            }
+        }
+    }
+    
+    // MARK: - Animation Management
+    
+    /// Centralized animation manager to prevent conflicts
+    private func performAnimation(
+        _ animation: Animation,
+        duration: TimeInterval,
+        targetScale: CGFloat? = nil,
+        targetOffset: CGSize? = nil,
+        completion: (() -> Void)? = nil
+    ) {
+        activeAnimationCount += 1
+        debugger.log("🎬 Starting animation #\(activeAnimationCount)", category: .animation, metadata: [
+            "duration": duration,
+            "targetScale": targetScale ?? "nil",
+            "targetOffset": targetOffset != nil ? "\(targetOffset!)" : "nil",
+            "isAnimating": isAnimating,
+            "totalActiveAnimations": activeAnimationCount
+        ])
+        
+        // Cancel any pending animations
+        pendingAnimation = nil
+        
+        // If already animating, queue this animation
+        guard !isAnimating else {
+            debugger.debugAnimationIssue("Animation Queued", reason: "Already animating", metadata: [
+                "duration": duration,
+                "targetScale": targetScale ?? "nil"
+            ])
+            pendingAnimation = {
+                self.performAnimation(
+                    animation,
+                    duration: duration,
+                    targetScale: targetScale,
+                    targetOffset: targetOffset,
+                    completion: completion
+                )
+            }
+            return
         }
         
-        return child
+        // Start animation
+        isAnimating = true
+        let currentAnimationID = UUID()
+        animationID = currentAnimationID
+        
+        // Stop any ongoing animations immediately
+        withAnimation(.linear(duration: 0)) {
+            // Immediate stop
+        }
+        
+        // Start the new animation
+        withAnimation(animation) {
+            if let targetScale = targetScale {
+                scale = targetScale
+            }
+            if let targetOffset = targetOffset {
+                offset = targetOffset
+            }
+        }
+        
+        // Handle completion
+        DispatchQueue.main.asyncAfter(deadline: .now() + duration + 0.1) {
+            // Only complete if this is still the current animation
+            guard currentAnimationID == self.animationID else { return }
+            
+            self.activeAnimationCount -= 1
+            self.isAnimating = false
+            self.debugger.log("✅ Animation #\(self.activeAnimationCount + 1) completed", category: .animation, metadata: [
+                "remainingAnimations": self.activeAnimationCount,
+                "duration": duration
+            ])
+            
+            // Execute completion
+            completion?()
+            
+            // Execute any pending animation
+            if let pending = self.pendingAnimation {
+                self.pendingAnimation = nil
+                pending()
+            }
+        }
     }
+    
+    // MARK: - Helper Methods
     
     private func deleteNode(_ node: Node) {
         viewContext.delete(node)
@@ -206,10 +322,17 @@ struct RadialMindMap: View {
     private func gestures(in size: CGSize) -> some Gesture {
         let magnify = MagnificationGesture(minimumScaleDelta: 0.01)
             .onChanged { value in
+                debugger.log("🔍 Magnify gesture changed", category: .gesture, metadata: [
+                    "magnification": value,
+                    "currentScale": scale,
+                    "zoomSensitivity": 0.15
+                ])
                 // Much slower, more controlled zoom with larger range
                 let zoomSensitivity: CGFloat = 0.15  // Even slower zoom (reduced from 0.3 to 0.15)
                 let newScale = scale * (1.0 + (value - 1.0) * zoomSensitivity)
-                // Much larger zoom range: 0.1 to 8.0 for extensive zoom control
+                
+                // Ensure we have valid numbers and clamp to safe range
+                guard newScale.isFinite && newScale > 0 else { return }
                 scale = min(8.0, max(0.1, newScale))
             }
 
@@ -218,37 +341,59 @@ struct RadialMindMap: View {
                 state = value.translation
             }
             .onEnded { value in
-                // Approximate velocity using predicted end
+                debugger.log("🖱️ Drag gesture ended", category: .gesture, metadata: [
+                    "translation": "\(value.translation)",
+                    "velocity": "\(value.velocity)",
+                    "location": "\(value.location)"
+                ])
+                // Calculate final position with momentum
                 let velocityX = (value.predictedEndLocation.x - value.location.x) / 0.25
                 let velocityY = (value.predictedEndLocation.y - value.location.y) / 0.25
+                
+                // Ensure velocity calculations are valid
+                guard velocityX.isFinite && velocityY.isFinite else { return }
+                
                 lastPanVelocity = CGSize(width: velocityX, height: velocityY)
 
-                // Inertial deceleration
-                let decay: CGFloat = 0.92
-                var current = CGSize(
+                // Calculate target position with momentum
+                let baseOffset = CGSize(
                     width: offset.width + value.translation.width,
                     height: offset.height + value.translation.height
                 )
-                var velocity = lastPanVelocity
                 
-                _Concurrency.Task { @MainActor in
-                    for _ in 0..<40 {
-                        velocity.width *= decay
-                        velocity.height *= decay
-                        current.width += velocity.width * 0.016
-                        current.height += velocity.height * 0.016
-                        offset = current
-                        try? await _Concurrency.Task.sleep(nanoseconds: 16_000_000)
-                    }
+                let momentumOffset = CGSize(
+                    width: lastPanVelocity.width * 0.8,
+                    height: lastPanVelocity.height * 0.8
+                )
+                
+                let targetOffset = CGSize(
+                    width: baseOffset.width + momentumOffset.width,
+                    height: baseOffset.height + momentumOffset.height
+                )
+                
+                // Ensure target offset is valid
+                guard targetOffset.width.isFinite && targetOffset.height.isFinite else { return }
+                
+                // Use centralized animation system
+                performAnimation(
+                    .easeOut(duration: 0.8),
+                    duration: 0.8,
+                    targetOffset: targetOffset
+                ) {
+                    self.updateCameraDebounced(self.offset)
                 }
             }
 
         let doubleTap = TapGesture(count: 2)
             .onEnded {
                 // Reset zoom to a comfortable level
-                withAnimation(.easeInOut(duration: 0.5)) {
-                    scale = 1.0
-                    offset = .zero
+                performAnimation(
+                    .easeInOut(duration: 0.5),
+                    duration: 0.5,
+                    targetScale: 1.0,
+                    targetOffset: .zero
+                ) {
+                    self.updateCameraDebounced(self.offset)
                 }
             }
         
@@ -258,11 +403,15 @@ struct RadialMindMap: View {
     }
 
     private func zoomToFit(in size: CGSize) {
-        guard layoutCache.contentBounds.width > 0 else { return }
+        guard layoutCache.contentBounds.width > 0 && layoutCache.contentBounds.height > 0 else { return }
         let padding: CGFloat = 80
-        let available = CGSize(width: size.width - padding * 2, height: size.height - padding * 2)
+        let available = CGSize(width: max(1, size.width - padding * 2), height: max(1, size.height - padding * 2))
         let scaleX = available.width / layoutCache.contentBounds.width
         let scaleY = available.height / layoutCache.contentBounds.height
+        
+        // Ensure we have valid numbers
+        guard scaleX.isFinite && scaleY.isFinite && scaleX > 0 && scaleY > 0 else { return }
+        
         let fitScale = max(0.6, min(1.6, min(scaleX, scaleY)))
 
         let centerOfContent = CGPoint(
@@ -271,14 +420,19 @@ struct RadialMindMap: View {
         )
         let viewCenter = CGPoint(x: size.width/2, y: size.height/2)
         
-        withAnimation(.spring(duration: 0.55, bounce: 0.35)) {
-            scale = fitScale
-            offset = CGSize(
-                width: viewCenter.x - centerOfContent.x,
-                height: viewCenter.y - centerOfContent.y
-            )
+        let targetOffset = CGSize(
+            width: viewCenter.x - centerOfContent.x,
+            height: viewCenter.y - centerOfContent.y
+        )
+        
+        performAnimation(
+            .spring(duration: 0.55, bounce: 0.35),
+            duration: 0.7,
+            targetScale: fitScale,
+            targetOffset: targetOffset
+        ) {
+            self.updateCameraDebounced(self.offset)
         }
-        onCameraChanged(offset)
     }
 
     private func applyCamera(to point: CGPoint) -> CGPoint {
@@ -369,12 +523,15 @@ struct RadialMindMap: View {
             let startAngle: CGFloat = ringIndex == 0 ? -.pi/2 : CGFloat(ringIndex) * goldenAngle
             
             for (index, child) in thisRing.enumerated() {
+                // Prevent division by zero
+                guard take > 0 else { continue }
                 let angleStep = 2 * .pi / CGFloat(take)
                 let theta = startAngle + angleStep * CGFloat(index)
                 
                 // Add slight randomization for organic feel (but deterministic based on node ID)
-                let randomOffset = sin(Double(child.uuid?.hashValue ?? 0)) * 0.1
-                let adjustedRadius = radius + CGFloat(randomOffset) * 15
+                let hashValue = child.uuid?.hashValue ?? 0
+                let randomOffset = sin(Double(abs(hashValue % 10000))) * 0.1
+                let adjustedRadius = max(0, radius + CGFloat(randomOffset) * 15)
                 
                 let centerX = size.width/2 + adjustedRadius * cos(theta)
                 let centerY = size.height/2 + adjustedRadius * sin(theta)
@@ -396,6 +553,8 @@ struct RadialMindMap: View {
             radii.append(finalRadius)
             
             for (index, child) in remaining.enumerated() {
+                // Prevent division by zero
+                guard remaining.count > 0 else { continue }
                 let theta = 2 * .pi * CGFloat(index) / CGFloat(remaining.count)
                 let centerX = size.width/2 + finalRadius * cos(theta)
                 let centerY = size.height/2 + finalRadius * sin(theta)

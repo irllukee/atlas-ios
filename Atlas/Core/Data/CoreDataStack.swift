@@ -103,7 +103,7 @@ final class CoreDataStack {
 
     func logDatabaseStats() {
         let entities = persistentContainer.managedObjectModel.entities
-        print("📊 Core Data Database Statistics:")
+        // Core Data Database Statistics
         for entity in entities {
             if let entityName = entity.name {
                 let fetchRequest = NSFetchRequest<NSFetchRequestResult>(entityName: entityName)

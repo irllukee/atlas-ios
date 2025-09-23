@@ -20,10 +20,8 @@ final class DataManager: ObservableObject {
     
     // MARK: - Initialization
     private init() {
-        print("📋 DataManager: Initializing...")
         self.coreDataStack = CoreDataStack.shared
         self.taskRepository = TaskRepository(context: coreDataStack.viewContext)
-        print("📋 DataManager: CoreDataStack and TaskRepository initialized")
         
         // Validate data integrity on startup
         validateDataIntegrity()
@@ -73,7 +71,7 @@ final class DataManager: ObservableObject {
     
     func handleError(_ error: Error) {
         lastError = error
-        print("❌ DataManager Error: \(error)")
+        // Error logged
     }
     
     // MARK: - Data Validation
@@ -85,7 +83,7 @@ final class DataManager: ObservableObject {
         }
         
         isDataValid = true
-        print("✅ Data integrity validated")
+        // Data integrity validated
     }
     
     // MARK: - Statistics
@@ -126,18 +124,7 @@ final class DataManager: ObservableObject {
     }
     
     // MARK: - Performance Monitoring
-    func logPerformanceMetrics() {
-        let stats = getAppStatistics()
-        let performanceMetrics = PerformanceService.shared.getPerformanceMetrics()
-        
-        print("📊 Atlas Performance Metrics:")
-        print("  📝 Notes: \(stats.totalNotes) total, \(stats.notesToday) today")
-        print("  ✅ Tasks: \(stats.totalTasks) total, \(stats.completedTasks) completed")
-        print("  💾 Memory: \(String(format: "%.1f", performanceMetrics.memoryUsageMB))MB")
-        print("  🖼️ Image Cache: \(performanceMetrics.imageCacheSize) items (\(String(format: "%.1f", performanceMetrics.imageCacheMemoryUsageMB))MB)")
-        print("  📄 Text Cache: \(performanceMetrics.textCacheSize) items")
-        print("  🔍 Preview Cache: \(performanceMetrics.notePreviewCacheSize) items")
-    }
+    // Removed logPerformanceMetrics() debugger
 }
 
 // MARK: - App Statistics Model

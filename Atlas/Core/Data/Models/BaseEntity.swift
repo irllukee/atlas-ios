@@ -35,6 +35,7 @@ extension Task: BaseEntity {
     }
 }
 extension JournalEntry: BaseEntity {}
+extension MindMap: BaseEntity {}
 extension Node: BaseEntity {}
 
 // MARK: - Entity Validation
@@ -179,9 +180,48 @@ extension MoodEntry {
     }
 }
 
+extension MindMap {
+    /// Create a new mind map with default values
+    static func create(context: NSManagedObjectContext, name: String) -> MindMap {
+        let mindMap = MindMap(context: context)
+        mindMap.uuid = UUID()
+        mindMap.name = name
+        mindMap.createdAt = Date()
+        mindMap.updatedAt = Date()
+        
+        // Create root node for this mind map
+        let rootNode = Node(context: context)
+        rootNode.uuid = UUID()
+        rootNode.title = name
+        rootNode.createdAt = Date()
+        rootNode.updatedAt = Date()
+        rootNode.mindMap = mindMap
+        mindMap.rootNode = rootNode
+        
+        return mindMap
+    }
+    
+    /// Update mind map name
+    func update(name: String? = nil) {
+        if let name = name {
+            self.name = name
+            // Also update the root node title to match
+            self.rootNode?.title = name
+        }
+        self.updatedAt = Date()
+        self.rootNode?.updatedAt = Date()
+    }
+    
+    /// Delete the mind map and all its nodes
+    func deleteWithAllNodes() {
+        // Core Data will handle cascading deletion due to the relationship settings
+        managedObjectContext?.delete(self)
+    }
+}
+
 extension Node {
     /// Create a new node with default values
-    static func create(context: NSManagedObjectContext, title: String, parent: Node? = nil, direction: String? = nil, level: Int16 = 0) -> Node {
+    static func create(context: NSManagedObjectContext, title: String, parent: Node? = nil, direction: String? = nil, level: Int16 = 0, mindMap: MindMap? = nil) -> Node {
         let node = Node(context: context)
         node.uuid = UUID()
         node.title = title
@@ -190,6 +230,7 @@ extension Node {
         node.parent = parent
         node.direction = direction
         node.level = level
+        node.mindMap = mindMap
         return node
     }
     

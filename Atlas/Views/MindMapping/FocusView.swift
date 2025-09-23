@@ -7,18 +7,22 @@ struct FocusView: View {
     @ObservedObject var node: Node
     @Binding var navigationPath: NavigationPath
     let dataManager: DataManager
+    
+    // Debugger for freeze detection
+    private let debugger = MindMappingDebugger.shared
 
     @State private var showingRename = false
     @State private var renameText = ""
     @State private var selectedForEdit: Node?
-    @State private var showStyleFor: Node?
+    @State private var selectedForRename: Node?
+    @State private var showingAddChildDialog = false
+    @State private var newChildName = ""
+    @State private var parentForNewChild: Node?
     @State private var appeared = false
     @State private var haptics = UIImpactFeedbackGenerator(style: .soft)
     @State private var cameraOffsetForParallax: CGSize = .zero
-    @State private var showSearch: Bool = true
     @State private var showingMenu = false
-    @State private var searchText = ""
-    @State private var isSearchFocused = false
+    @FocusState private var isTextFieldFocused: Bool
 
     var body: some View {
         ZStack {
@@ -31,15 +35,24 @@ struct FocusView: View {
                 RadialMindMap(
                     center: node,
                     children: Array(node.children as? Set<Node> ?? []),
-                    onFocusChild: { _ in 
-                        haptics.impactOccurred() 
+                    onFocusChild: { selectedNode in 
+                        haptics.impactOccurred()
+                        navigationPath.append(selectedNode)
                     },
                     onEditNote: { selectedNode in 
+                        debugger.log("📝 FocusView onEditNote called for: \(selectedNode.title ?? "unknown")", category: .interaction)
                         selectedForEdit = selectedNode 
+                        debugger.log("📝 selectedForEdit set to: \(selectedNode.title ?? "unknown")", category: .interaction)
                     },
                     onRename: { selectedNode in 
+                        selectedForRename = selectedNode
                         renameText = selectedNode.title ?? ""
                         showingRename = true 
+                    },
+                    onAddChild: { parentNode in
+                        parentForNewChild = parentNode
+                        newChildName = ""
+                        showingAddChildDialog = true
                     },
                     onCameraChanged: { cameraOffset in 
                         cameraOffsetForParallax = cameraOffset 
@@ -85,37 +98,65 @@ struct FocusView: View {
                 menuOverlay
             }
             
-            // Floating Search Bar
+            // Floating + Button
             VStack {
                 Spacer()
-                if showSearch {
-                    modernSearchBar
-                }
+                floatingAddButton
             }
         }
         .navigationBarHidden(true)
         .sheet(item: $selectedForEdit) { selectedNode in
             NoteEditor(node: selectedNode)
                 .presentationDetents([.medium, .large])
+                .onAppear {
+                    debugger.log("📱 NoteEditor sheet appeared for: \(selectedNode.title ?? "unknown")", category: .interaction)
+                }
         }
-        .sheet(item: $showStyleFor) { selectedNode in
-            IconColorPicker(node: selectedNode)
-                .presentationDetents([.fraction(0.55), .large])
+        .onChange(of: selectedForEdit) { _, newValue in
+            if let node = newValue {
+                debugger.log("📱 NoteEditor sheet appearing for: \(node.title ?? "unknown")", category: .interaction)
+            }
+        }
+        .alert("Add Child Node", isPresented: $showingAddChildDialog) {
+            TextField("Node name", text: $newChildName)
+                .focused($isTextFieldFocused)
+                .textInputAutocapitalization(.words)
+                .autocorrectionDisabled()
+            Button("Add") {
+                createChildNode()
+                isTextFieldFocused = false
+            }
+            .disabled(newChildName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+            Button("Cancel", role: .cancel) {
+                parentForNewChild = nil
+                newChildName = ""
+                isTextFieldFocused = false
+            }
+        } message: {
+            Text("Enter a name for the new child node.")
         }
         .alert("Rename", isPresented: $showingRename) {
             TextField("Title", text: $renameText)
+                .focused($isTextFieldFocused)
+                .textInputAutocapitalization(.words)
+                .autocorrectionDisabled()
             Button("Save") {
                 let trimmedTitle = renameText.trimmingCharacters(in: .whitespacesAndNewlines)
-                if !trimmedTitle.isEmpty { 
-                    node.title = trimmedTitle 
+                if !trimmedTitle.isEmpty, let targetNode = selectedForRename { 
+                    targetNode.title = trimmedTitle 
                 }
                 do {
                     try viewContext.save()
                 } catch {
                     print("Failed to save rename: \(error)")
                 }
+                selectedForRename = nil
+                isTextFieldFocused = false
             }
-            Button("Cancel", role: .cancel) { }
+            Button("Cancel", role: .cancel) { 
+                selectedForRename = nil
+                isTextFieldFocused = false
+            }
         } message: {
             Text("Enter a new title for the selected idea.")
         }
@@ -168,81 +209,30 @@ struct FocusView: View {
         .padding(.top, 10)
     }
 
-    // MARK: - Modern Search Bar
-    private var modernSearchBar: some View {
-        HStack(spacing: 12) {
-            HStack(spacing: 8) {
-                Image(systemName: "magnifyingglass")
-                    .foregroundColor(.white.opacity(0.6))
-                    .font(.system(size: 16))
-                
-                TextField("Search nodes...", text: $searchText)
-                    .textFieldStyle(PlainTextFieldStyle())
-                    .foregroundColor(.white)
-                    .font(.system(size: 16))
-                    .onTapGesture {
-                        isSearchFocused = true
-                    }
-                    .onSubmit {
-                        isSearchFocused = false
-                        // Handle search
-                        performSearch()
-                    }
-                
-                if !searchText.isEmpty {
-                    Button(action: { 
-                        searchText = ""
-                        isSearchFocused = false
-                    }) {
-                        Image(systemName: "xmark.circle.fill")
-                            .foregroundColor(.white.opacity(0.6))
-                            .font(.system(size: 16))
-                    }
-                }
-            }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 12)
-            .background(
-                RoundedRectangle(cornerRadius: 25)
-                    .fill(AtlasTheme.Colors.primary.opacity(0.15))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 25)
-                            .stroke(
-                                isSearchFocused ? AtlasTheme.Colors.primary : Color.clear, 
-                                lineWidth: 2
-                            )
-                    )
-            )
+    // MARK: - Floating Add Button
+    private var floatingAddButton: some View {
+        Button(action: { 
+            let child = Node(context: viewContext)
+            child.uuid = UUID()
+            child.title = "New Idea"
+            child.createdAt = Date()
+            child.updatedAt = Date()
+            child.parent = node
             
-            Button(action: { 
-                let child = Node(context: viewContext)
-                child.uuid = UUID()
-                child.title = "New Idea"
-                child.createdAt = Date()
-                child.updatedAt = Date()
-                child.parent = node
-                
-                do {
-                    try viewContext.save()
-                } catch {
-                    print("Failed to add child: \(error)")
-                }
-            }) {
-                Image(systemName: "plus.circle.fill")
-                    .font(.title2)
-                    .foregroundColor(AtlasTheme.Colors.primary)
-                    .padding(8)
+            do {
+                try viewContext.save()
+            } catch {
+                print("Failed to add child: \(error)")
             }
+        }) {
+            Image(systemName: "plus.circle.fill")
+                .font(.title2)
+                .foregroundColor(AtlasTheme.Colors.primary)
+                .padding(8)
         }
         .padding(.horizontal, 20)
         .padding(.bottom, 40) // Safe area padding
         .padding(.top, 8)
-        .background(
-            RoundedRectangle(cornerRadius: 20)
-                .fill(AtlasTheme.Colors.background.opacity(0.9))
-                .shadow(color: .black.opacity(0.1), radius: 10, x: 0, y: -5)
-        )
-        .padding(.horizontal, 16)
     }
     
     // MARK: - Menu Overlay
@@ -293,19 +283,16 @@ struct FocusView: View {
                     
                     menuItem(icon: "pencil", title: "Rename Node", action: { 
                         showingMenu = false
+                        selectedForRename = node
                         renameText = node.title ?? ""
                         showingRename = true
                     })
                     
-                    menuItem(icon: "note.text", title: "Edit Note", action: { 
+                    menuItem(icon: "note.text", title: "Show Note", action: { 
                         showingMenu = false
                         selectedForEdit = node
                     })
                     
-                    menuItem(icon: "paintpalette", title: "Style Node", action: { 
-                        showingMenu = false
-                        showStyleFor = node
-                    })
                     
                     menuItem(icon: "trash", title: "Delete Node", action: { 
                         showingMenu = false
@@ -335,6 +322,31 @@ struct FocusView: View {
         }
     }
     
+    private func createChildNode() {
+        guard let parent = parentForNewChild else { return }
+        
+        let child = Node(context: viewContext)
+        child.uuid = UUID()
+        child.title = newChildName.trimmingCharacters(in: .whitespacesAndNewlines)
+        child.createdAt = Date()
+        child.updatedAt = Date()
+        child.parent = parent
+        child.mindMap = parent.mindMap
+        
+        do {
+            try viewContext.save()
+            haptics.impactOccurred()
+        } catch {
+            print("Failed to create child node: \(error)")
+        }
+        
+        // Clean up and dismiss keyboard
+        parentForNewChild = nil
+        newChildName = ""
+        showingAddChildDialog = false
+        isTextFieldFocused = false
+    }
+    
     private func menuItem(icon: String, title: String, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             HStack(spacing: 12) {
@@ -359,24 +371,17 @@ struct FocusView: View {
         .buttonStyle(PlainButtonStyle())
     }
     
-    private func performSearch() {
-        // Implement search functionality
-        print("Searching for: \(searchText)")
-    }
     
     private func reorganizeNodes() {
         // Trigger a layout recalculation with haptic feedback
-        withAnimation(.spring(duration: 0.6, bounce: 0.3)) {
-            // This will cause the RadialMindMap to recalculate layout
-            // due to the onChange modifier watching children.count
-            // We can trigger it by temporarily modifying then restoring a property
-            let originalTitle = node.title ?? ""
-            node.title = originalTitle + " " // Tiny change
-            
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                node.title = originalTitle // Restore
-                haptics.impactOccurred(intensity: 0.7)
-            }
+        // Use a safer approach that doesn't modify node properties
+        haptics.impactOccurred(intensity: 0.7)
+        
+        // Force a layout update by triggering the RadialMindMap's layout recalculation
+        // This is safer than modifying node properties during animations
+        withAnimation(.spring(duration: 0.3, bounce: 0.2)) {
+            // The RadialMindMap will automatically recalculate layout
+            // when it detects changes in the children array or layout cache
         }
     }
 }

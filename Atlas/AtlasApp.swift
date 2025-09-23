@@ -86,10 +86,7 @@ struct AtlasApp: App {
                 isAppReady = true
             }
             
-            // Log performance metrics after app is ready
-            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
-                dataManager.logPerformanceMetrics()
-            }
+            // Removed performance metrics logging
         }
         
         // Initialize Journal data in background

@@ -139,9 +139,6 @@ struct NotesDetailView: View {
         }
         .navigationViewStyle(StackNavigationViewStyle())
         .onAppear {
-            print("🔧 DEBUG: NotesDetailView appeared - note: \(note?.title ?? "nil (new note)")")
-            print("🔧 DEBUG: Initial title: '\(title)'")
-            print("🔧 DEBUG: Initial html: '\(html)'")
             setupNote()
             startAutoSave()
         }
@@ -351,14 +348,14 @@ struct NotesDetailView: View {
             isFavorite = note.isFavorite
             selectedFolder = note.folder
             selectedTags = Set(note.tags?.allObjects as? [NoteTag] ?? [])
-            print("🔧 DEBUG: Setup existing note - title: '\(title)', html: '\(html)'")
+            // Setup existing note
         } else {
             title = ""
             html = "<p></p>"
             isFavorite = false
             selectedFolder = nil
             selectedTags = []
-            print("🔧 DEBUG: Setup new note - title: '\(title)', html: '\(html)'")
+            // Setup new note
         }
     }
     
@@ -494,7 +491,7 @@ struct FolderPickerView: View {
                         }) {
                             HStack {
                                 Circle()
-                                    .fill(Color(hex: folder.color ?? "#007AFF") ?? AtlasTheme.Colors.primary)
+                                    .fill(AtlasTheme.Colors.primary)
                                     .frame(width: 12, height: 12)
                                 
                                 Text(folder.name ?? "Unnamed Folder")
@@ -561,7 +558,7 @@ struct NotesTagPickerView: View {
                         }) {
                             HStack {
                                 Circle()
-                                    .fill(Color(hex: tag.color ?? "#FF9500") ?? AtlasTheme.Colors.secondary)
+                                    .fill(AtlasTheme.Colors.secondary)
                                     .frame(width: 12, height: 12)
                                 
                                 Text(tag.name ?? "Unnamed Tag")

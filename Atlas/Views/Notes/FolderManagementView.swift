@@ -136,7 +136,7 @@ struct FolderManagementView: View {
                     LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 5), spacing: 12) {
                         ForEach(colors, id: \.self) { color in
                             Circle()
-                                .fill(Color(hex: color) ?? AtlasTheme.Colors.primary)
+                                .fill(AtlasTheme.Colors.primary)
                                 .frame(width: 40, height: 40)
                                 .overlay(
                                     Circle()
@@ -205,7 +205,7 @@ struct FolderRowView: View {
             // Folder Icon
             Image(systemName: "folder.fill")
                 .font(.system(size: 20, weight: .medium))
-                .foregroundColor(Color(hex: folder.color ?? "#FF6B35") ?? AtlasTheme.Colors.primary)
+                .foregroundColor(AtlasTheme.Colors.primary)
             
             // Folder Info
             VStack(alignment: .leading, spacing: 4) {
@@ -275,7 +275,7 @@ struct FolderRowView: View {
                     LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 5), spacing: 12) {
                         ForEach(colors, id: \.self) { color in
                             Circle()
-                                .fill(Color(hex: color) ?? AtlasTheme.Colors.primary)
+                                .fill(AtlasTheme.Colors.primary)
                                 .frame(width: 40, height: 40)
                                 .overlay(
                                     Circle()
