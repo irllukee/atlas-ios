@@ -25,9 +25,6 @@ struct FocusView: View {
             // Space background
             SpaceBackgroundView()
             
-            // Glass overlay for depth
-            GlassBackgroundView(parallaxOffset: cameraOffsetForParallax)
-            
             VStack(spacing: 0) {
                 header
 
