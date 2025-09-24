@@ -15,10 +15,6 @@ struct MindMappingView: View {
     @State private var showingMindMapSelector = false
     @State private var showingCreateDialog = false
     @State private var newMindMapName = ""
-    @State private var showingDebugger = false
-    
-    // Debugger
-    @StateObject private var debugger = MindMappingDebugger.shared
     
     let dataManager: DataManager
     private var mindMapRepository: MindMapRepository
@@ -99,9 +95,6 @@ struct MindMappingView: View {
             }
             .sheet(isPresented: $showingMindMapSelector) {
                 mindMapSelectorSheet
-            }
-            .sheet(isPresented: $showingDebugger) {
-                debuggerSheet
             }
         }
         .background(AtlasTheme.Colors.background.ignoresSafeArea())
@@ -253,23 +246,6 @@ struct MindMappingView: View {
                     
                     Divider()
                     
-                    menuItem(icon: debugger.isEnabled ? "stop.circle.fill" : "play.circle.fill", 
-                            title: debugger.isEnabled ? "Stop Debugger" : "Start Debugger", 
-                            action: { 
-                        showingMenu = false
-                        if debugger.isEnabled {
-                            debugger.disable()
-                        } else {
-                            debugger.enable()
-                        }
-                    })
-                    
-                    if debugger.isEnabled {
-                        menuItem(icon: "doc.text", title: "View Debug Log", action: { 
-                            showingMenu = false
-                            showingDebugger = true
-                        })
-                    }
                 }
                 .padding(.horizontal)
                 .padding(.bottom)
@@ -439,104 +415,6 @@ struct MindMappingView: View {
     private func deleteMindMaps(offsets: IndexSet) {
         for index in offsets {
             deleteMindMap(mindMaps[index])
-        }
-    }
-    
-    // MARK: - Debugger Sheet
-    private var debuggerSheet: some View {
-        NavigationView {
-            VStack {
-                // Performance Metrics
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Performance Metrics")
-                        .font(.headline)
-                        .padding(.bottom, 4)
-                    
-                    HStack {
-                        Text("Memory:")
-                        Spacer()
-                        Text("\(String(format: "%.1f", debugger.performanceMetrics.memoryUsage))MB")
-                    }
-                    
-                    HStack {
-                        Text("Node Count:")
-                        Spacer()
-                        Text("\(debugger.performanceMetrics.nodeCount)")
-                    }
-                    
-                    HStack {
-                        Text("Gesture Count:")
-                        Spacer()
-                        Text("\(debugger.performanceMetrics.gestureCount)")
-                    }
-                    
-                    HStack {
-                        Text("Animation Count:")
-                        Spacer()
-                        Text("\(debugger.performanceMetrics.animationCount)")
-                    }
-                }
-                .padding()
-                .background(Color.gray.opacity(0.1))
-                .cornerRadius(8)
-                
-                // Debug Log
-                VStack(alignment: .leading) {
-                    Text("Debug Log")
-                        .font(.headline)
-                        .padding(.bottom, 4)
-                    
-                    ScrollView {
-                        LazyVStack(alignment: .leading, spacing: 4) {
-                            ForEach(debugger.debugLog.indices, id: \.self) { index in
-                                let entry = debugger.debugLog[index]
-                                VStack(alignment: .leading, spacing: 2) {
-                                    HStack {
-                                        Text("[\(entry.timestamp.formatted(date: .omitted, time: .standard))]")
-                                            .font(.caption)
-                                            .foregroundColor(.secondary)
-                                        Text("[\(entry.category.rawValue.uppercased())]")
-                                            .font(.caption)
-                                            .foregroundColor(.blue)
-                                    }
-                                    Text(entry.message)
-                                        .font(.caption)
-                                        .multilineTextAlignment(.leading)
-                                }
-                                .padding(.vertical, 2)
-                            }
-                        }
-                    }
-                    .frame(maxHeight: 300)
-                }
-                
-                Spacer()
-                
-                // Controls
-                HStack {
-                    Button("Capture Performance") {
-                        debugger.capturePerformanceSnapshot()
-                    }
-                    .buttonStyle(.bordered)
-                    
-                    Button("Export Log") {
-                        let logText = debugger.exportDebugLog()
-                        // You could implement sharing here
-                        print(logText)
-                    }
-                    .buttonStyle(.bordered)
-                }
-            }
-            .padding()
-            .navigationTitle("Mind Mapping Debugger")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Done") {
-                        showingDebugger = false
-                    }
-                }
-            }
         }
     }
 }

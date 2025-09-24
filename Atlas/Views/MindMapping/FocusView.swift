@@ -7,9 +7,6 @@ struct FocusView: View {
     @ObservedObject var node: Node
     @Binding var navigationPath: NavigationPath
     let dataManager: DataManager
-    
-    // Debugger for freeze detection
-    private let debugger = MindMappingDebugger.shared
 
     @State private var showingRename = false
     @State private var renameText = ""
@@ -40,9 +37,15 @@ struct FocusView: View {
                         navigationPath.append(selectedNode)
                     },
                     onEditNote: { selectedNode in 
-                        debugger.log("📝 FocusView onEditNote called for: \(selectedNode.title ?? "unknown")", category: .interaction)
-                        selectedForEdit = selectedNode 
-                        debugger.log("📝 selectedForEdit set to: \(selectedNode.title ?? "unknown")", category: .interaction)
+                        // Only set if it actually changed (prevents duplicate updates per frame)
+                        if selectedForEdit?.uuid != selectedNode.uuid {
+                            // Coalesce onto next run loop to avoid mutating during view update
+                            DispatchQueue.main.async {
+                                withTransaction(Transaction(animation: nil)) {
+                                    self.selectedForEdit = selectedNode
+                                }
+                            }
+                        }
                     },
                     onRename: { selectedNode in 
                         selectedForRename = selectedNode
@@ -108,14 +111,6 @@ struct FocusView: View {
         .sheet(item: $selectedForEdit) { selectedNode in
             NoteEditor(node: selectedNode)
                 .presentationDetents([.medium, .large])
-                .onAppear {
-                    debugger.log("📱 NoteEditor sheet appeared for: \(selectedNode.title ?? "unknown")", category: .interaction)
-                }
-        }
-        .onChange(of: selectedForEdit) { _, newValue in
-            if let node = newValue {
-                debugger.log("📱 NoteEditor sheet appearing for: \(node.title ?? "unknown")", category: .interaction)
-            }
         }
         .alert("Add Child Node", isPresented: $showingAddChildDialog) {
             TextField("Node name", text: $newChildName)

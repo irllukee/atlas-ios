@@ -10,6 +10,8 @@ struct NoteEditor: View, @preconcurrency Identifiable {
     @State private var title: String = ""
     @State private var note: String = ""
     @State private var hasChanges = false
+    @State private var isLoaded = false
+    @State private var saveWorkItem: DispatchWorkItem?
 
     var body: some View {
         NavigationView {
@@ -19,13 +21,19 @@ struct NoteEditor: View, @preconcurrency Identifiable {
                         .textInputAutocapitalization(.sentences)
                         .submitLabel(.done)
                         .accessibilityLabel("Title field")
-                        .onChange(of: title) { hasChanges = true }
+                        .onChange(of: title) { 
+                            hasChanges = true
+                            saveDebounced()
+                        }
                 }
                 Section("Note") {
                     TextEditor(text: $note)
                         .frame(minHeight: 200)
                         .accessibilityLabel("Note text")
-                        .onChange(of: note) { hasChanges = true }
+                        .onChange(of: note) { 
+                            hasChanges = true
+                            saveDebounced()
+                        }
                 }
                 
                 Section {
@@ -54,12 +62,60 @@ struct NoteEditor: View, @preconcurrency Identifiable {
                         .disabled(!hasChanges)
                 }
             }
-            .onAppear {
-                title = node.title ?? ""
-                note = node.note ?? ""
-                hasChanges = false
+            .task {
+                // Load data off main thread to prevent UI blocking
+                await loadNodeData()
+            }
+            .onDisappear {
+                // Cancel any pending save operations
+                saveWorkItem?.cancel()
             }
         }
+    }
+    
+    private func loadNodeData() async {
+        // Load node data in background to prevent UI blocking
+        let nodeTitle = node.title ?? ""
+        let nodeNote = node.note ?? ""
+        
+        // Update UI on main thread
+        await MainActor.run {
+            self.title = nodeTitle
+            self.note = nodeNote
+            self.hasChanges = false
+            self.isLoaded = true
+        }
+    }
+    
+    private func saveDebounced() {
+        // Cancel existing save operation
+        saveWorkItem?.cancel()
+        
+        // Create new debounced save operation
+        let workItem = DispatchWorkItem { [weak viewContext, weak node] in
+            guard let viewContext = viewContext, let node = node else { return }
+            
+            // Update node properties
+            let trimmedTitle = self.title.trimmingCharacters(in: .whitespacesAndNewlines)
+            if !trimmedTitle.isEmpty {
+                node.title = trimmedTitle
+            }
+            
+            let trimmedNote = self.note.trimmingCharacters(in: .whitespacesAndNewlines)
+            node.note = trimmedNote.isEmpty ? nil : trimmedNote
+            
+            // Save on background context to avoid blocking UI
+            viewContext.perform {
+                do {
+                    try viewContext.save()
+                } catch {
+                    print("Failed to auto-save note: \(error)")
+                }
+            }
+        }
+        
+        saveWorkItem = workItem
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5, execute: workItem)
     }
 
     private func save() {

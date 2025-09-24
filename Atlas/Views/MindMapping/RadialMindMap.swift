@@ -18,7 +18,7 @@ struct RadialMindMap: View {
 
     var center: Node
     var children: [Node]
-    var onFocusChild: (Node) -> Void
+    var onFocusChild: (Node) -> Void 
     var onEditNote: (Node) -> Void
     var onRename: (Node) -> Void
     var onAddChild: (Node) -> Void
@@ -37,11 +37,6 @@ struct RadialMindMap: View {
     @State private var pendingAnimation: (() -> Void)?
     @State private var cameraUpdateTimer: Timer?
     
-    // Debugger for freeze detection
-    private let debugger = MindMappingDebugger.shared
-    
-    // Animation tracking
-    @State private var activeAnimationCount = 0
 
     @State private var layoutCache = RingLayout()
     @State private var draggingNodeID: UUID?
@@ -80,8 +75,6 @@ struct RadialMindMap: View {
                        height: bubbleSize(for: size, isCenter: true))
                 .position(applyCamera(to: CGPoint(x: size.width/2, y: size.height/2)))
                 .onTapGesture(count: 2) { 
-                    debugger.recordInteraction("Center node double tap")
-                    debugger.log("🎯 Center node double-tap detected", category: .interaction)
                     // Use async dispatch to prevent blocking the UI
                     DispatchQueue.main.async {
                         onEditNote(center)
@@ -113,8 +106,6 @@ struct RadialMindMap: View {
                         .frame(width: pos.size, height: pos.size)
                         .position(applyCamera(to: pos.center))
                         .onTapGesture(count: 1) {
-                            debugger.recordInteraction("Child node single tap", metadata: ["nodeTitle": child.title ?? "unknown"])
-                            debugger.log("👆 Child node single-tap: \(child.title ?? "unknown")", category: .interaction)
                             // Use async dispatch to prevent blocking the UI
                             DispatchQueue.main.async {
                                 onFocusChild(child)
@@ -122,14 +113,9 @@ struct RadialMindMap: View {
                             }
                         }
                         .onTapGesture(count: 2) {
-                            debugger.recordInteraction("Child node double tap", metadata: ["nodeTitle": child.title ?? "unknown"])
-                            debugger.log("🎯 Child node double-tap: \(child.title ?? "unknown")", category: .interaction)
-                            debugger.log("📝 About to call onEditNote", category: .interaction)
                             // Use async dispatch to prevent blocking the UI
                             DispatchQueue.main.async {
-                                debugger.log("📝 Calling onEditNote for: \(child.title ?? "unknown")", category: .interaction)
                                 onEditNote(child)
-                                debugger.log("✅ onEditNote completed for: \(child.title ?? "unknown")", category: .interaction)
                             }
                         }
                         .contextMenu {
@@ -175,11 +161,6 @@ struct RadialMindMap: View {
             }
             .onAppear {
                 layoutCache = computeLayout(for: size)
-                debugger.log("🎯 RadialMindMap appeared", category: .general, metadata: [
-                    "centerNode": center.title ?? "unknown",
-                    "childrenCount": children.count,
-                    "debuggerEnabled": debugger.isEnabled
-                ])
                 // Removed auto zoomToFit to prevent conflicts - user can double-tap to fit
             }
             .onChange(of: size) { _, _ in 
@@ -187,16 +168,8 @@ struct RadialMindMap: View {
             }
             // Removed duplicate double tap gesture - handled in gestures() function
             .onChange(of: offset) { oldVal, newVal in 
-                debugger.log("📍 Offset changed", category: .animation, metadata: [
-                    "oldOffset": "\(oldVal)",
-                    "newOffset": "\(newVal)",
-                    "isAnimating": isAnimating
-                ])
                 // Only update camera if not currently animating to prevent conflicts
-                guard !isAnimating else { 
-                    debugger.log("⏸️ Skipping offset update - animation in progress", category: .animation)
-                    return 
-                }
+                guard !isAnimating else { return }
                 updateCameraDebounced(newVal)
             }
         }
@@ -206,19 +179,12 @@ struct RadialMindMap: View {
     
     /// Debounced camera update to prevent multiple updates per frame
     private func updateCameraDebounced(_ newOffset: CGSize) {
-        debugger.log("🔄 Camera update debounced", category: .animation, metadata: [
-            "newOffset": "\(newOffset)",
-            "timerExists": cameraUpdateTimer != nil
-        ])
         // Cancel existing timer
         cameraUpdateTimer?.invalidate()
         
         // Set new timer with debounce delay
         cameraUpdateTimer = Timer.scheduledTimer(withTimeInterval: 0.016, repeats: false) { _ in
             DispatchQueue.main.async {
-                debugger.log("🎥 Camera update executed", category: .animation, metadata: [
-                    "finalOffset": "\(newOffset)"
-                ])
                 self.onCameraChanged(newOffset)
             }
         }
@@ -234,24 +200,12 @@ struct RadialMindMap: View {
         targetOffset: CGSize? = nil,
         completion: (() -> Void)? = nil
     ) {
-        activeAnimationCount += 1
-        debugger.log("🎬 Starting animation #\(activeAnimationCount)", category: .animation, metadata: [
-            "duration": duration,
-            "targetScale": targetScale ?? "nil",
-            "targetOffset": targetOffset != nil ? "\(targetOffset!)" : "nil",
-            "isAnimating": isAnimating,
-            "totalActiveAnimations": activeAnimationCount
-        ])
         
         // Cancel any pending animations
         pendingAnimation = nil
         
         // If already animating, queue this animation
         guard !isAnimating else {
-            debugger.debugAnimationIssue("Animation Queued", reason: "Already animating", metadata: [
-                "duration": duration,
-                "targetScale": targetScale ?? "nil"
-            ])
             pendingAnimation = {
                 self.performAnimation(
                     animation,
@@ -289,12 +243,7 @@ struct RadialMindMap: View {
             // Only complete if this is still the current animation
             guard currentAnimationID == self.animationID else { return }
             
-            self.activeAnimationCount -= 1
             self.isAnimating = false
-            self.debugger.log("✅ Animation #\(self.activeAnimationCount + 1) completed", category: .animation, metadata: [
-                "remainingAnimations": self.activeAnimationCount,
-                "duration": duration
-            ])
             
             // Execute completion
             completion?()
@@ -322,11 +271,6 @@ struct RadialMindMap: View {
     private func gestures(in size: CGSize) -> some Gesture {
         let magnify = MagnificationGesture(minimumScaleDelta: 0.01)
             .onChanged { value in
-                debugger.log("🔍 Magnify gesture changed", category: .gesture, metadata: [
-                    "magnification": value,
-                    "currentScale": scale,
-                    "zoomSensitivity": 0.15
-                ])
                 // Much slower, more controlled zoom with larger range
                 let zoomSensitivity: CGFloat = 0.15  // Even slower zoom (reduced from 0.3 to 0.15)
                 let newScale = scale * (1.0 + (value - 1.0) * zoomSensitivity)
@@ -341,11 +285,6 @@ struct RadialMindMap: View {
                 state = value.translation
             }
             .onEnded { value in
-                debugger.log("🖱️ Drag gesture ended", category: .gesture, metadata: [
-                    "translation": "\(value.translation)",
-                    "velocity": "\(value.velocity)",
-                    "location": "\(value.location)"
-                ])
                 // Calculate final position with momentum
                 let velocityX = (value.predictedEndLocation.x - value.location.x) / 0.25
                 let velocityY = (value.predictedEndLocation.y - value.location.y) / 0.25
