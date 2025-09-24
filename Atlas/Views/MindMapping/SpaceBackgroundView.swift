@@ -1,6 +1,9 @@
 import SwiftUI
 
 struct SpaceBackgroundView: View {
+    @State private var starPositions: [CGPoint] = []
+    @State private var distantStarPositions: [CGPoint] = []
+    @State private var nebulaPositions: [CGPoint] = []
     
     var body: some View {
         GeometryReader { geometry in
@@ -17,70 +20,71 @@ struct SpaceBackgroundView: View {
                 )
                 .ignoresSafeArea()
                 
-                // Nebula clouds
+                // Use Canvas for efficient star rendering
+                Canvas { context, size in
+                    // Draw static stars
+                    for position in starPositions {
+                        context.fill(
+                            Path(ellipseIn: CGRect(x: position.x, y: position.y, width: 1, height: 1)),
+                            with: .color(.white)
+                        )
+                    }
+                    
+                    // Draw distant stars
+                    for position in distantStarPositions {
+                        context.fill(
+                            Path(ellipseIn: CGRect(x: position.x, y: position.y, width: 0.5, height: 0.5)),
+                            with: .color(.white.opacity(0.3))
+                        )
+                    }
+                }
+                .onAppear {
+                    generateStarPositions(for: geometry.size)
+                }
+                .onChange(of: geometry.size) { newSize in
+                    generateStarPositions(for: newSize)
+                }
+                
+                // Nebula clouds (only 3, with reduced blur for performance)
                 ForEach(0..<3, id: \.self) { index in
                     Circle()
                         .fill(
                             RadialGradient(
                                 colors: [
-                                    Color.purple.opacity(0.1),
-                                    Color.blue.opacity(0.05),
+                                    Color.purple.opacity(0.08),
+                                    Color.blue.opacity(0.04),
                                     Color.clear
                                 ],
                                 center: .center,
                                 startRadius: 0,
-                                endRadius: 150
+                                endRadius: 120
                             )
                         )
-                        .frame(width: 300, height: 300)
+                        .frame(width: 240, height: 240)
                         .offset(
                             x: CGFloat(index * 200 - 200),
                             y: CGFloat(index * 150 - 150)
                         )
-                        .blur(radius: 20)
-                }
-                
-                // Static stars (no animation) - increased count
-                ForEach(0..<150, id: \.self) { index in
-                    Circle()
-                        .fill(Color.white)
-                        .frame(width: 1, height: 1)
-                        .position(
-                            x: CGFloat.random(in: 0...geometry.size.width),
-                            y: CGFloat.random(in: 0...geometry.size.height)
-                        )
-                }
-                
-                // Distant stars (smaller, dimmer) - increased count
-                ForEach(0..<200, id: \.self) { index in
-                    Circle()
-                        .fill(Color.white.opacity(0.3))
-                        .frame(width: 0.5, height: 0.5)
-                        .position(
-                            x: CGFloat.random(in: 0...geometry.size.width),
-                            y: CGFloat.random(in: 0...geometry.size.height)
-                        )
-                }
-                
-                // Shooting stars (occasional)
-                ForEach(0..<3, id: \.self) { index in
-                    Rectangle()
-                        .fill(
-                            LinearGradient(
-                                colors: [Color.white, Color.blue.opacity(0.8), Color.clear],
-                                startPoint: .leading,
-                                endPoint: .trailing
-                            )
-                        )
-                        .frame(width: 2, height: 1)
-                        .rotationEffect(.degrees(45))
-                        .offset(
-                            x: CGFloat(index * 200 - 100),
-                            y: CGFloat(index * 150 - 75)
-                        )
-                        .opacity(0.3)
+                        .blur(radius: 15) // Reduced from 20
                 }
             }
+        }
+    }
+    
+    private func generateStarPositions(for size: CGSize) {
+        // Generate positions only once per size change
+        starPositions = (0..<150).map { _ in
+            CGPoint(
+                x: CGFloat.random(in: 0...size.width),
+                y: CGFloat.random(in: 0...size.height)
+            )
+        }
+        
+        distantStarPositions = (0..<200).map { _ in
+            CGPoint(
+                x: CGFloat.random(in: 0...size.width),
+                y: CGFloat.random(in: 0...size.height)
+            )
         }
     }
 }

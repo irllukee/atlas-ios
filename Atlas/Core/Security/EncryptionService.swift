@@ -11,6 +11,12 @@ protocol EncryptionServiceProtocol {
     func generateKey() -> SymmetricKey
     func storeKey(_ key: SymmetricKey, identifier: String) throws
     func retrieveKey(identifier: String) throws -> SymmetricKey
+    
+    // Async methods for better performance
+    func encryptAsync(_ text: String) async throws -> EncryptedData
+    func encryptAsync(_ data: Data) async throws -> EncryptedData
+    func decryptAsync(_ encryptedData: EncryptedData) async throws -> Data
+    func decryptToStringAsync(_ encryptedData: EncryptedData) async throws -> String
 }
 
 // MARK: - Encryption Service Implementation
@@ -101,6 +107,60 @@ class EncryptionService: EncryptionServiceProtocol {
             let newKey = generateKey()
             try storeKey(newKey, identifier: keyIdentifier)
             return newKey
+        }
+    }
+    
+    // MARK: - Async Methods for Better Performance
+    
+    func encryptAsync(_ text: String) async throws -> EncryptedData {
+        return try await withCheckedThrowingContinuation { continuation in
+            DispatchQueue.global(qos: .userInitiated).async {
+                do {
+                    let result = try self.encrypt(text)
+                    continuation.resume(returning: result)
+                } catch {
+                    continuation.resume(throwing: error)
+                }
+            }
+        }
+    }
+    
+    func encryptAsync(_ data: Data) async throws -> EncryptedData {
+        return try await withCheckedThrowingContinuation { continuation in
+            DispatchQueue.global(qos: .userInitiated).async {
+                do {
+                    let result = try self.encrypt(data)
+                    continuation.resume(returning: result)
+                } catch {
+                    continuation.resume(throwing: error)
+                }
+            }
+        }
+    }
+    
+    func decryptAsync(_ encryptedData: EncryptedData) async throws -> Data {
+        return try await withCheckedThrowingContinuation { continuation in
+            DispatchQueue.global(qos: .userInitiated).async {
+                do {
+                    let result = try self.decrypt(encryptedData)
+                    continuation.resume(returning: result)
+                } catch {
+                    continuation.resume(throwing: error)
+                }
+            }
+        }
+    }
+    
+    func decryptToStringAsync(_ encryptedData: EncryptedData) async throws -> String {
+        return try await withCheckedThrowingContinuation { continuation in
+            DispatchQueue.global(qos: .userInitiated).async {
+                do {
+                    let result = try self.decryptToString(encryptedData)
+                    continuation.resume(returning: result)
+                } catch {
+                    continuation.resume(throwing: error)
+                }
+            }
         }
     }
 }

@@ -14,7 +14,8 @@ class AutoSaveService: ObservableObject {
     private let dataManager = DataManager.shared
     private var saveTimer: Timer?
     private var pendingChanges: [String: Any] = [:]
-    private let saveInterval: TimeInterval = 2.0 // Auto-save every 2 seconds
+    private let saveInterval: TimeInterval = 5.0 // Auto-save every 5 seconds (reduced frequency)
+    private let maxBatchSize = 10 // Maximum changes to save in one batch
     
     enum SaveStatus: Equatable {
         case idle
@@ -60,15 +61,19 @@ class AutoSaveService: ObservableObject {
         saveTimer = nil
     }
     
-    /// Perform automatic save of pending changes
+    /// Perform automatic save of pending changes with background processing
     private func performAutoSave() async {
         guard !pendingChanges.isEmpty else { return }
+        
+        // Don't start new save if already saving
+        guard !isAutoSaving else { return }
         
         isAutoSaving = true
         saveStatus = .saving
         
         do {
-            try await savePendingChanges()
+            // Use background context for better performance
+            try await savePendingChangesInBackground()
             saveStatus = .saved
             lastSaveTime = Date()
             pendingChanges.removeAll()
@@ -80,7 +85,30 @@ class AutoSaveService: ObservableObject {
         isAutoSaving = false
     }
     
-    /// Save pending changes to Core Data
+    /// Save pending changes to Core Data using background context
+    private func savePendingChangesInBackground() async throws {
+        return try await withCheckedThrowingContinuation { continuation in
+            dataManager.coreDataStack.performBackgroundTask { backgroundContext in
+                do {
+                    // Limit batch size for better performance
+                    let changesToProcess = Array(self.pendingChanges.prefix(self.maxBatchSize))
+                    
+                    for (entityId, changes) in changesToProcess {
+                        if let noteChanges = changes as? [String: Any] {
+                            try self.saveNoteChangesSync(entityId: entityId, changes: noteChanges, context: backgroundContext)
+                        }
+                    }
+                    
+                    try backgroundContext.save()
+                    continuation.resume()
+                } catch {
+                    continuation.resume(throwing: error)
+                }
+            }
+        }
+    }
+    
+    /// Save pending changes to Core Data (legacy method for compatibility)
     private func savePendingChanges() async throws {
         let context = dataManager.coreDataStack.viewContext
         
@@ -93,8 +121,35 @@ class AutoSaveService: ObservableObject {
         try context.save()
     }
     
-    /// Save changes for a specific note
+    /// Save changes for a specific note (async version)
     private func saveNoteChanges(entityId: String, changes: [String: Any], context: NSManagedObjectContext) async throws {
+        guard let noteId = UUID(uuidString: entityId) else { return }
+        
+        let request: NSFetchRequest<Note> = Note.fetchRequest()
+        request.predicate = NSPredicate(format: "uuid == %@", noteId as CVarArg)
+        
+        let notes = try context.fetch(request)
+        guard let note = notes.first else { return }
+        
+        // Apply changes
+        if let title = changes["title"] as? String {
+            note.title = title
+        }
+        if let content = changes["content"] as? String {
+            note.content = content
+        }
+        if let isEncrypted = changes["isEncrypted"] as? Bool {
+            note.isEncrypted = isEncrypted
+        }
+        if let isFavorite = changes["isFavorite"] as? Bool {
+            note.isFavorite = isFavorite
+        }
+        
+        note.updatedAt = Date()
+    }
+    
+    /// Save changes for a specific note (sync version for background context)
+    private func saveNoteChangesSync(entityId: String, changes: [String: Any], context: NSManagedObjectContext) throws {
         guard let noteId = UUID(uuidString: entityId) else { return }
         
         let request: NSFetchRequest<Note> = Note.fetchRequest()

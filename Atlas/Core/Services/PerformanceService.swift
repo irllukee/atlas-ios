@@ -10,20 +10,60 @@ class PerformanceService: ObservableObject {
     @Published var isOptimizing = false
     @Published var optimizationProgress: Double = 0.0
     
-    // Performance settings
+    // Performance settings - adaptive based on device memory
     private let maxVisibleNotes = 50
-    private let imageCacheSize = 50 // Reduced from 100 for better memory management
-    private let textCacheSize = 200
-    private let maxImageCacheSize = 50 * 1024 * 1024 // 50MB limit
+    private let imageCacheSize: Int
+    private let textCacheSize: Int
+    private let maxImageCacheSize: Int
     
-    // Caches
-    private var imageCache: [String: UIImage] = [:]
-    private var textCache: [String: NSAttributedString] = [:]
-    private var notePreviewCache: [String: String] = [:]
+    // Caches with LRU eviction
+    private var imageCache: [String: (UIImage, Date)] = [:]
+    private var textCache: [String: (NSAttributedString, Date)] = [:]
+    private var notePreviewCache: [String: (String, Date)] = [:]
     private var currentImageCacheSize: Int = 0
     
+    // Memory pressure monitoring
+    private var memoryPressureSource: DispatchSourceMemoryPressure?
+    private var lastMemoryWarning: Date = Date.distantPast
+    
     private init() {
+        // Adaptive cache sizing based on device memory
+        let deviceMemory = PerformanceService.getDeviceMemory()
+        switch deviceMemory {
+        case .low: // < 2GB
+            self.imageCacheSize = 20
+            self.textCacheSize = 100
+            self.maxImageCacheSize = 20 * 1024 * 1024 // 20MB
+        case .medium: // 2-4GB
+            self.imageCacheSize = 35
+            self.textCacheSize = 150
+            self.maxImageCacheSize = 35 * 1024 * 1024 // 35MB
+        case .high: // > 4GB
+            self.imageCacheSize = 50
+            self.textCacheSize = 200
+            self.maxImageCacheSize = 50 * 1024 * 1024 // 50MB
+        }
+        
         setupMemoryWarningObserver()
+        setupMemoryPressureMonitoring()
+    }
+    
+    // MARK: - Device Memory Detection
+    private enum DeviceMemory {
+        case low, medium, high
+    }
+    
+    private static func getDeviceMemory() -> DeviceMemory {
+        let totalMemory = ProcessInfo.processInfo.physicalMemory
+        let memoryInGB = Double(totalMemory) / (1024 * 1024 * 1024)
+        
+        if memoryInGB < 2.0 {
+            return .low
+        } else if memoryInGB < 4.0 {
+            return .medium
+        } else {
+            return .high
+        }
     }
     
     // MARK: - Memory Management
@@ -35,17 +75,110 @@ class PerformanceService: ObservableObject {
             queue: .main
         ) { [weak self] _ in
             _Concurrency.Task { @MainActor in
-                self?.clearCaches()
+                self?.handleMemoryWarning()
             }
         }
     }
     
-    func clearCaches() {
-        imageCache.removeAll()
-        textCache.removeAll()
-        notePreviewCache.removeAll()
-        currentImageCacheSize = 0
-        print("🧹 Performance: Caches cleared due to memory pressure")
+    private func setupMemoryPressureMonitoring() {
+        memoryPressureSource = DispatchSource.makeMemoryPressureSource(eventMask: .all, queue: .main)
+        memoryPressureSource?.setEventHandler { [weak self] in
+            guard let self = self else { return }
+            self.handleMemoryPressure()
+        }
+        memoryPressureSource?.resume()
+    }
+    
+    private func handleMemoryWarning() {
+        lastMemoryWarning = Date()
+        clearCaches(aggressive: true)
+        print("🚨 Performance: Memory warning received - aggressive cache clearing")
+    }
+    
+    private func handleMemoryPressure() {
+        guard Date().timeIntervalSince(lastMemoryWarning) > 5.0 else { return }
+        clearCaches(aggressive: false)
+        print("⚠️ Performance: Memory pressure detected - moderate cache clearing")
+    }
+    
+    func clearCaches(aggressive: Bool = false) {
+        if aggressive {
+            // Clear everything
+            imageCache.removeAll()
+            textCache.removeAll()
+            notePreviewCache.removeAll()
+            currentImageCacheSize = 0
+        } else {
+            // Clear oldest entries only
+            clearOldestCacheEntries()
+        }
+        print("🧹 Performance: Caches cleared (aggressive: \(aggressive))")
+    }
+    
+    func handleMemoryPressure(_ level: MemoryPressureService.MemoryPressureLevel) {
+        switch level {
+        case .normal:
+            // No action needed for normal memory pressure
+            break
+        case .low:
+            // Only clear oldest 50% of caches
+            clearPartialCaches(percentage: 0.5)
+        case .medium:
+            // Clear 75% of caches
+            clearPartialCaches(percentage: 0.75)
+        case .high:
+            // Clear all caches aggressively
+            clearCaches(aggressive: true)
+        case .critical:
+            // Clear all caches aggressively
+            clearCaches(aggressive: true)
+        }
+    }
+    
+    private func clearPartialCaches(percentage: Double) {
+        let imageKeysToRemove = Array(imageCache.keys.prefix(Int(Double(imageCache.count) * percentage)))
+        let textKeysToRemove = Array(textCache.keys.prefix(Int(Double(textCache.count) * percentage)))
+        let noteKeysToRemove = Array(notePreviewCache.keys.prefix(Int(Double(notePreviewCache.count) * percentage)))
+        
+        for key in imageKeysToRemove {
+            if let value = imageCache.removeValue(forKey: key) {
+                currentImageCacheSize -= estimateImageSize(value.0)
+            }
+        }
+        
+        for key in textKeysToRemove {
+            textCache.removeValue(forKey: key)
+        }
+        
+        for key in noteKeysToRemove {
+            notePreviewCache.removeValue(forKey: key)
+        }
+        
+        print("🧹 Performance: Cleared \(Int(percentage * 100))% of caches due to memory pressure")
+    }
+    
+    private func clearOldestCacheEntries() {
+        let now = Date()
+        
+        // Clear oldest image cache entries (older than 5 minutes)
+        imageCache = imageCache.filter { key, value in
+            now.timeIntervalSince(value.1) < 300
+        }
+        
+        // Clear oldest text cache entries (older than 10 minutes)
+        textCache = textCache.filter { key, value in
+            now.timeIntervalSince(value.1) < 600
+        }
+        
+        // Clear oldest note preview cache entries (older than 5 minutes)
+        notePreviewCache = notePreviewCache.filter { key, value in
+            now.timeIntervalSince(value.1) < 300
+        }
+        
+        // Recalculate cache size
+        currentImageCacheSize = imageCache.values.reduce(0) { total, value in
+            total + estimateImageSize(value.0)
+        }
     }
     
     // MARK: - Note List Optimization
@@ -60,24 +193,35 @@ class PerformanceService: ObservableObject {
         return Array(notes[startIndex..<endIndex])
     }
     
-    /// Generates optimized note preview text
+    /// Generates optimized note preview text with LRU cache
     func getOptimizedNotePreview(for note: Note) -> String {
         let noteId = note.uuid?.uuidString ?? ""
         
         if let cached = notePreviewCache[noteId] {
-            return cached
+            // Update access time for LRU
+            notePreviewCache[noteId] = (cached.0, Date())
+            return cached.0
         }
         
         let preview = generateNotePreview(note)
         
-        // Cache management
+        // Cache management with LRU eviction
         if notePreviewCache.count >= textCacheSize {
-            let keysToRemove = Array(notePreviewCache.keys.prefix(textCacheSize / 4))
-            keysToRemove.forEach { notePreviewCache.removeValue(forKey: $0) }
+            evictOldestCacheEntries()
         }
         
-        notePreviewCache[noteId] = preview
+        notePreviewCache[noteId] = (preview, Date())
         return preview
+    }
+    
+    private func evictOldestCacheEntries() {
+        // Sort by access time and remove oldest 25%
+        let sortedEntries = notePreviewCache.sorted { $0.value.1 < $1.value.1 }
+        let entriesToRemove = sortedEntries.prefix(textCacheSize / 4)
+        
+        for (key, _) in entriesToRemove {
+            notePreviewCache.removeValue(forKey: key)
+        }
     }
     
     private func generateNotePreview(_ note: Note) -> String {
@@ -98,12 +242,14 @@ class PerformanceService: ObservableObject {
     
     // MARK: - Image Optimization
     
-    /// Optimizes image for display with caching
+    /// Optimizes image for display with LRU caching
     func getOptimizedImage(from data: Data?, id: String) -> UIImage? {
         guard let data = data else { return nil }
         
         if let cached = imageCache[id] {
-            return cached
+            // Update access time for LRU
+            imageCache[id] = (cached.0, Date())
+            return cached.0
         }
         
         guard let image = UIImage(data: data) else { return nil }
@@ -114,12 +260,12 @@ class PerformanceService: ObservableObject {
         // Calculate image size for cache management
         let imageSize = estimateImageSize(optimizedImage)
         
-        // Cache management with size limits
+        // Cache management with size limits and LRU eviction
         if currentImageCacheSize + imageSize > maxImageCacheSize || imageCache.count >= imageCacheSize {
             clearOldestImages()
         }
         
-        imageCache[id] = optimizedImage
+        imageCache[id] = (optimizedImage, Date())
         currentImageCacheSize += imageSize
         return optimizedImage
     }
@@ -130,10 +276,13 @@ class PerformanceService: ObservableObject {
     }
     
     private func clearOldestImages() {
-        let keysToRemove = Array(imageCache.keys.prefix(imageCacheSize / 4))
-        keysToRemove.forEach { key in
-            if let image = imageCache.removeValue(forKey: key) {
-                currentImageCacheSize -= estimateImageSize(image)
+        // Sort by access time and remove oldest 25%
+        let sortedEntries = imageCache.sorted { $0.value.1 < $1.value.1 }
+        let entriesToRemove = sortedEntries.prefix(imageCacheSize / 4)
+        
+        for (key, value) in entriesToRemove {
+            if imageCache.removeValue(forKey: key) != nil {
+                currentImageCacheSize -= estimateImageSize(value.0)
             }
         }
     }
@@ -154,32 +303,59 @@ class PerformanceService: ObservableObject {
             newSize.width = maxSize.height * aspectRatio
         }
         
-        UIGraphicsBeginImageContextWithOptions(newSize, false, 0.0)
-        image.draw(in: CGRect(origin: .zero, size: newSize))
-        let resizedImage = UIGraphicsGetImageFromCurrentImageContext()
-        UIGraphicsEndImageContext()
+        // Use Core Graphics for better performance
+        guard let cgImage = image.cgImage else { return image }
         
-        return resizedImage ?? image
+        let width = Int(newSize.width)
+        let height = Int(newSize.height)
+        
+        guard let colorSpace = cgImage.colorSpace else { return image }
+        guard let context = CGContext(
+            data: nil,
+            width: width,
+            height: height,
+            bitsPerComponent: cgImage.bitsPerComponent,
+            bytesPerRow: width * 4,
+            space: colorSpace,
+            bitmapInfo: cgImage.bitmapInfo.rawValue
+        ) else { return image }
+        
+        context.interpolationQuality = .high
+        context.draw(cgImage, in: CGRect(origin: .zero, size: newSize))
+        
+        guard let resizedCGImage = context.makeImage() else { return image }
+        return UIImage(cgImage: resizedCGImage)
     }
     
     // MARK: - Text Optimization
     
-    /// Optimizes attributed text with caching
+    /// Optimizes attributed text with LRU caching
     func getOptimizedAttributedText(from content: String, id: String) -> NSAttributedString {
         if let cached = textCache[id] {
-            return cached
+            // Update access time for LRU
+            textCache[id] = (cached.0, Date())
+            return cached.0
         }
         
         let attributedString = NSAttributedString(string: content)
         
-        // Cache management
+        // Cache management with LRU eviction
         if textCache.count >= textCacheSize {
-            let keysToRemove = Array(textCache.keys.prefix(textCacheSize / 4))
-            keysToRemove.forEach { textCache.removeValue(forKey: $0) }
+            evictOldestTextCacheEntries()
         }
         
-        textCache[id] = attributedString
+        textCache[id] = (attributedString, Date())
         return attributedString
+    }
+    
+    private func evictOldestTextCacheEntries() {
+        // Sort by access time and remove oldest 25%
+        let sortedEntries = textCache.sorted { $0.value.1 < $1.value.1 }
+        let entriesToRemove = sortedEntries.prefix(textCacheSize / 4)
+        
+        for (key, _) in entriesToRemove {
+            textCache.removeValue(forKey: key)
+        }
     }
     
     // MARK: - Performance Monitoring

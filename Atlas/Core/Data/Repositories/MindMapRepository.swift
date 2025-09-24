@@ -2,7 +2,7 @@ import Foundation
 import CoreData
 
 /// Repository for managing MindMap entities
-class MindMapRepository: BaseRepository<MindMap> {
+class MindMapRepository: BaseRepository<MindMap>, @unchecked Sendable {
     
     override init(context: NSManagedObjectContext) {
         super.init(context: context)

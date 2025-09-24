@@ -285,41 +285,50 @@ struct RadialMindMap: View {
                 state = value.translation
             }
             .onEnded { value in
-                // Calculate final position with momentum
-                let velocityX = (value.predictedEndLocation.x - value.location.x) / 0.25
-                let velocityY = (value.predictedEndLocation.y - value.location.y) / 0.25
-                
-                // Ensure velocity calculations are valid
-                guard velocityX.isFinite && velocityY.isFinite else { return }
-                
-                lastPanVelocity = CGSize(width: velocityX, height: velocityY)
+                // Move heavy calculations to background thread for better performance
+                _Concurrency.Task {
+                    // Calculate final position with momentum
+                    let velocityX = (value.predictedEndLocation.x - value.location.x) / 0.25
+                    let velocityY = (value.predictedEndLocation.y - value.location.y) / 0.25
+                    
+                    // Ensure velocity calculations are valid
+                    guard velocityX.isFinite && velocityY.isFinite else { return }
+                    
+                    let calculatedVelocity = CGSize(width: velocityX, height: velocityY)
 
-                // Calculate target position with momentum
-                let baseOffset = CGSize(
-                    width: offset.width + value.translation.width,
-                    height: offset.height + value.translation.height
-                )
-                
-                let momentumOffset = CGSize(
-                    width: lastPanVelocity.width * 0.8,
-                    height: lastPanVelocity.height * 0.8
-                )
-                
-                let targetOffset = CGSize(
-                    width: baseOffset.width + momentumOffset.width,
-                    height: baseOffset.height + momentumOffset.height
-                )
-                
-                // Ensure target offset is valid
-                guard targetOffset.width.isFinite && targetOffset.height.isFinite else { return }
-                
-                // Use centralized animation system
-                performAnimation(
-                    .easeOut(duration: 0.8),
-                    duration: 0.8,
-                    targetOffset: targetOffset
-                ) {
-                    self.updateCameraDebounced(self.offset)
+                    // Calculate target position with momentum (optimized)
+                    let baseOffset = CGSize(
+                        width: offset.width + value.translation.width,
+                        height: offset.height + value.translation.height
+                    )
+                    
+                    // Reduced momentum for smoother performance
+                    let momentumOffset = CGSize(
+                        width: calculatedVelocity.width * 0.6, // Reduced from 0.8
+                        height: calculatedVelocity.height * 0.6
+                    )
+                    
+                    let targetOffset = CGSize(
+                        width: baseOffset.width + momentumOffset.width,
+                        height: baseOffset.height + momentumOffset.height
+                    )
+                    
+                    // Ensure target offset is valid
+                    guard targetOffset.width.isFinite && targetOffset.height.isFinite else { return }
+                    
+                    // Update UI on main thread
+                    await MainActor.run {
+                        lastPanVelocity = calculatedVelocity
+                        
+                        // Use centralized animation system
+                        performAnimation(
+                            .easeOut(duration: 0.6), // Reduced duration for snappier feel
+                            duration: 0.6,
+                            targetOffset: targetOffset
+                        ) {
+                            self.updateCameraDebounced(self.offset)
+                        }
+                    }
                 }
             }
 
