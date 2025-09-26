@@ -86,7 +86,7 @@ class JournalService: ObservableObject {
     
     func deleteEntry(_ entry: JournalEntry) async {
         do {
-            try await repository.deleteJournalEntry(entry)
+            try repository.deleteJournalEntry(entry)
             entries.removeAll { $0.id == entry.id }
             clearError()
         } catch {
@@ -113,7 +113,7 @@ class JournalService: ObservableObject {
     
     func deleteMoodEntry(_ moodEntry: MoodEntry) async {
         do {
-            try await repository.deleteMoodEntry(moodEntry)
+            try repository.deleteMoodEntry(moodEntry)
             moodEntries.removeAll { $0.id == moodEntry.id }
             clearError()
         } catch {
@@ -143,7 +143,7 @@ class JournalService: ObservableObject {
     
     func deleteTemplate(_ template: JournalTemplate) async {
         do {
-            try await repository.deleteTemplate(template)
+            try repository.deleteTemplate(template)
             templates.removeAll { $0.id == template.id }
             clearError()
         } catch {
@@ -173,7 +173,7 @@ class JournalService: ObservableObject {
     
     func deletePrompt(_ prompt: JournalPrompt) async {
         do {
-            try await repository.deletePrompt(prompt)
+            try repository.deletePrompt(prompt)
             prompts.removeAll { $0.id == prompt.id }
             clearError()
         } catch {
@@ -184,7 +184,7 @@ class JournalService: ObservableObject {
     // MARK: - Analytics
     func getMoodAnalytics(for timeframe: MoodTimeframe) async -> MoodAnalytics? {
         do {
-            return try await repository.getMoodAnalytics(for: timeframe)
+            return try repository.getMoodAnalytics(for: timeframe)
         } catch {
             handleError(error)
             return nil

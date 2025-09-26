@@ -614,7 +614,7 @@ struct NoteCardView: View {
     }
     
     private var noteColor: Color {
-        if let folder = note.folder, let colorString = folder.color {
+        if let folder = note.folder, let _ = folder.color {
             return AtlasTheme.Colors.primary
         }
         return AtlasTheme.Colors.primary

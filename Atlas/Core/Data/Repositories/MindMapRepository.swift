@@ -4,6 +4,8 @@ import CoreData
 /// Repository for managing MindMap entities
 class MindMapRepository: BaseRepository<MindMap>, @unchecked Sendable {
     
+    // MARK: - Undo Service (Simplified for now)
+    
     override init(context: NSManagedObjectContext) {
         super.init(context: context)
     }
@@ -57,6 +59,13 @@ class MindMapRepository: BaseRepository<MindMap>, @unchecked Sendable {
     
     /// Update mind map name
     func updateMindMap(_ mindMap: MindMap, name: String) -> Bool {
+        let _: [String: Any] = [
+            "name": mindMap.name ?? "",
+            "updatedAt": mindMap.updatedAt ?? Date(),
+            "rootNodeTitle": mindMap.rootNode?.title ?? "",
+            "rootNodeUpdatedAt": mindMap.rootNode?.updatedAt ?? Date()
+        ]
+        
         mindMap.update(name: name)
         
         do {
@@ -73,6 +82,18 @@ class MindMapRepository: BaseRepository<MindMap>, @unchecked Sendable {
     
     /// Delete a mind map and all its nodes
     func deleteMindMap(_ mindMap: MindMap) -> Bool {
+        let _: [String: Any] = [
+            "name": mindMap.name ?? "",
+            "createdAt": mindMap.createdAt ?? Date(),
+            "updatedAt": mindMap.updatedAt ?? Date(),
+            "rootNode": [
+                "uuid": mindMap.rootNode?.uuid as Any,
+                "title": mindMap.rootNode?.title ?? "",
+                "createdAt": mindMap.rootNode?.createdAt ?? Date(),
+                "updatedAt": mindMap.rootNode?.updatedAt ?? Date()
+            ]
+        ]
+        
         mindMap.deleteWithAllNodes()
         
         do {

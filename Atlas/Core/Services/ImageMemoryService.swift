@@ -24,6 +24,7 @@ class ImageMemoryService: ObservableObject {
     
     // Memory monitoring
     private var memoryWarningObserver: NSObjectProtocol?
+    private var memoryMonitoringTimer: Timer?
     private let memoryThreshold: UInt64 = 100 * 1024 * 1024 // 100MB
     
     private init() {
@@ -46,7 +47,7 @@ class ImageMemoryService: ObservableObject {
     }
     
     private func startMemoryMonitoring() {
-        Timer.scheduledTimer(withTimeInterval: 5.0, repeats: true) { [weak self] _ in
+        memoryMonitoringTimer = Timer.scheduledTimer(withTimeInterval: 5.0, repeats: true) { [weak self] _ in
             _Concurrency.Task { @MainActor in
                 self?.updateMemoryUsage()
             }
@@ -294,10 +295,26 @@ class ImageMemoryService: ObservableObject {
         }
     }
     
-    deinit {
-        // Observer cleanup is handled by the notification center automatically
-        // when the observer is deallocated
+    /// Stop memory monitoring
+    private func stopMemoryMonitoring() {
+        memoryMonitoringTimer?.invalidate()
+        memoryMonitoringTimer = nil
     }
+    
+    /// Cleanup method for proper resource management
+    func cleanup() {
+        stopMemoryMonitoring()
+        clearAllCaches()
+        
+        // Remove memory warning observer
+        if let observer = memoryWarningObserver {
+            NotificationCenter.default.removeObserver(observer)
+            memoryWarningObserver = nil
+        }
+    }
+    
+    // Note: Timer cleanup is handled by the timer itself when invalidated
+    // No deinit needed due to Swift 6 concurrency safety constraints
 }
 
 // MARK: - Cache Statistics

@@ -36,9 +36,8 @@ final class NotesService: ObservableObject {
     private var _filteredNotes: [Note]?
     private var filteredCacheValid = false
     
-    // MARK: - Auto-save
-    private var autoSaveTimer: Timer?
-    private let autoSaveInterval: TimeInterval = 2.0
+    // MARK: - Auto-save (using consolidated service)
+    private let autoSaveService = AutoSaveService.shared
     
     // MARK: - Background Processing
     private let backgroundQueue = DispatchQueue(label: "com.atlas.notes.processing", qos: .userInitiated)
@@ -48,7 +47,6 @@ final class NotesService: ObservableObject {
         self.coreDataStack = CoreDataStack.shared
         self.context = coreDataStack.viewContext
         
-        setupAutoSave()
         loadData()
     }
     
@@ -355,25 +353,9 @@ final class NotesService: ObservableObject {
         return Array(notes.prefix(10))
     }
     
-    // MARK: - Auto-save
-    private func setupAutoSave() {
-        autoSaveTimer = Timer.scheduledTimer(withTimeInterval: autoSaveInterval, repeats: true) { [weak self] _ in
-            DispatchQueue.main.async {
-                self?.performAutoSave()
-            }
-        }
-    }
-    
-    private func performAutoSave() {
-        guard context.hasChanges else { return }
-        
-        do {
-            try context.save()
-        } catch {
-            print("❌ Auto-save failed: \(error)")
-            handleError(error, context: "auto-save")
-        }
-    }
+    // MARK: - Auto-save (using consolidated AutoSaveService)
+    // Auto-save functionality is now handled by AutoSaveService.shared
+    // Use autoSaveService.saveNoteChange() or autoSaveService.registerChange() for auto-save
     
     // MARK: - Context Management
     func saveContext() {
@@ -446,11 +428,7 @@ final class NotesService: ObservableObject {
     }
     
     // MARK: - Cleanup
-    deinit {
-        DispatchQueue.main.async { [weak self] in
-            self?.autoSaveTimer?.invalidate()
-        }
-    }
+    // No cleanup needed - AutoSaveService handles its own timer cleanup
 }
 
 // MARK: - Notes Statistics

@@ -191,6 +191,14 @@ final class SecurityManager: ObservableObject {
         authenticationTimer = nil
     }
     
+    /// Cleanup method for proper resource management
+    func cleanup() {
+        stopAuthenticationTimer()
+    }
+    
+    // Note: Timer cleanup is handled by the timer itself when invalidated
+    // No deinit needed due to Swift 6 concurrency safety constraints
+    
     private func resetAuthenticationTimer() {
         lastAuthenticationTime = Date()
     }

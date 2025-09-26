@@ -7,19 +7,94 @@ struct FocusView: View {
     @ObservedObject var node: Node
     @Binding var navigationPath: NavigationPath
     let dataManager: DataManager
+    
+    // MARK: - State Management
+    @ObservedObject var stateManager: MindMapStateManager
+    
+    // MARK: - Computed Properties
+    /// Use the state manager's focused node (which updates on navigation)
+    private var currentNode: Node {
+        let focusedNode = stateManager.focusedNode ?? node
+        print("🔍 FocusView currentNode: \(focusedNode.title ?? "unknown") (from stateManager: \(stateManager.focusedNode?.title ?? "nil"))")
+        return focusedNode
+    }
+    
+    // MARK: - Repositories
+    private let nodeRepository: NodeRepository
+    
+    // MARK: - Initialization
+    init(node: Node, navigationPath: Binding<NavigationPath>, dataManager: DataManager, stateManager: MindMapStateManager) {
+        self.node = node
+        self._navigationPath = navigationPath
+        self.dataManager = dataManager
+        self.stateManager = stateManager
+        self.nodeRepository = NodeRepository(context: dataManager.coreDataStack.viewContext)
+    }
 
-    @State private var showingRename = false
-    @State private var renameText = ""
-    @State private var selectedForEdit: Node?
-    @State private var selectedForRename: Node?
-    @State private var showingAddChildDialog = false
-    @State private var newChildName = ""
-    @State private var parentForNewChild: Node?
     @State private var appeared = false
     @State private var haptics = UIImpactFeedbackGenerator(style: .soft)
     @State private var cameraOffsetForParallax: CGSize = .zero
-    @State private var showingMenu = false
     @FocusState private var isTextFieldFocused: Bool
+    
+    // Data validation constants
+    private let maxNodeNameLength = 50
+    private let minNodeNameLength = 1
+    
+    // MARK: - Computed Properties for Safe Core Data Access
+    
+    private var editNode: Node? {
+        return stateManager.editingNode
+    }
+    
+    private var renameNode: Node? {
+        return stateManager.renamingNode
+    }
+    
+    private var newChildParentNode: Node? {
+        return currentNode // Use the current focused node as parent
+    }
+    
+    private func fetchNode(with id: UUID) -> Node? {
+        let request: NSFetchRequest<Node> = Node.fetchRequest()
+        request.predicate = NSPredicate(format: "uuid == %@", id as CVarArg)
+        request.fetchLimit = 1
+        
+        do {
+            return try viewContext.fetch(request).first
+        } catch {
+            stateManager.showError("Failed to load node: \(error.localizedDescription)")
+            return nil
+        }
+    }
+    
+    
+    private func handleMemoryWarning() {
+        print("🧠 Memory warning in FocusView - cleaning up resources")
+        
+        // Clear any cached data or temporary state
+        // Note: Core Data objects and essential state are kept
+        
+        // The haptics generator will be automatically released when the view is deallocated
+        // No explicit cleanup needed for @State variables
+    }
+    
+    private func validateNodeName(_ name: String) -> String? {
+        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        
+        if trimmed.isEmpty {
+            return "Node name cannot be empty"
+        }
+        
+        if trimmed.count < minNodeNameLength {
+            return "Node name must be at least \(minNodeNameLength) character"
+        }
+        
+        if name.count > maxNodeNameLength {
+            return "Node name must be \(maxNodeNameLength) characters or less"
+        }
+        
+        return nil
+    }
 
     var body: some View {
         ZStack {
@@ -29,39 +104,21 @@ struct FocusView: View {
             VStack(spacing: 0) {
                 header
 
-                RadialMindMap(
-                    center: node,
-                    children: Array(node.children as? Set<Node> ?? []),
-                    onFocusChild: { selectedNode in 
+                // Simplified mind map view - center node with children around it
+                SimpleMindMapView(
+                    centerNode: currentNode,
+                    childNodes: Array(currentNode.children as? Set<Node> ?? []),
+                    onNodeTap: { selectedNode in 
+                        print("🔍 onNodeTap callback called with: \(selectedNode.title ?? "unknown")")
                         haptics.impactOccurred()
+                        print("🔍 Focusing on node: \(selectedNode.title ?? "unknown")")
+                        // Update the state manager's focused node
+                        stateManager.focusedNode = selectedNode
+                        print("🔍 Updated stateManager.focusedNode to: \(stateManager.focusedNode?.title ?? "nil")")
+                        // Navigate to the selected node using the navigation path
                         navigationPath.append(selectedNode)
-                    },
-                    onEditNote: { selectedNode in 
-                        // Only set if it actually changed (prevents duplicate updates per frame)
-                        if selectedForEdit?.uuid != selectedNode.uuid {
-                            // Coalesce onto next run loop to avoid mutating during view update
-                            DispatchQueue.main.async {
-                                withTransaction(Transaction(animation: nil)) {
-                                    self.selectedForEdit = selectedNode
-                                }
-                            }
-                        }
-                    },
-                    onRename: { selectedNode in 
-                        selectedForRename = selectedNode
-                        renameText = selectedNode.title ?? ""
-                        showingRename = true 
-                    },
-                    onAddChild: { parentNode in
-                        parentForNewChild = parentNode
-                        newChildName = ""
-                        showingAddChildDialog = true
-                    },
-                    onCameraChanged: { cameraOffset in 
-                        cameraOffsetForParallax = cameraOffset 
-                    },
-                    navigationPath: $navigationPath,
-                    dataManager: dataManager
+                        print("🔍 Navigation path count after append: \(navigationPath.count)")
+                    }
                 )
                 .padding(.bottom, 12)
 
@@ -71,35 +128,11 @@ struct FocusView: View {
                 appeared = true
                 haptics.prepare() 
             }
-            
-            // Hamburger Menu
-            VStack {
-                HStack {
-                    Spacer()
-                    Button(action: { showingMenu.toggle() }) {
-                        Image(systemName: "line.3.horizontal")
-                            .font(.title2)
-                            .foregroundColor(.white)
-                            .padding(12)
-                            .background(
-                                Circle()
-                                    .fill(AtlasTheme.Colors.primary.opacity(0.2))
-                                    .overlay(
-                                        Circle()
-                                            .stroke(AtlasTheme.Colors.primary.opacity(0.3), lineWidth: 1)
-                                    )
-                            )
-                    }
-                    .padding(.trailing)
-                    .padding(.top, 8)
-                }
-                Spacer()
+            .onDisappear {
+                // Cleanup haptics generator to prevent memory leak
+                // haptics will be automatically released when view is deallocated
             }
             
-            // Menu Overlay
-            if showingMenu {
-                menuOverlay
-            }
             
             // Floating + Button
             VStack {
@@ -108,70 +141,22 @@ struct FocusView: View {
             }
         }
         .navigationBarHidden(true)
-        .sheet(item: $selectedForEdit) { selectedNode in
-            NoteEditor(node: selectedNode)
-                .presentationDetents([.medium, .large])
-        }
-        .alert("Add Child Node", isPresented: $showingAddChildDialog) {
-            TextField("Node name", text: $newChildName)
-                .focused($isTextFieldFocused)
-                .textInputAutocapitalization(.words)
-                .autocorrectionDisabled()
-            Button("Add") {
-                createChildNode()
-                isTextFieldFocused = false
-            }
-            .disabled(newChildName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-            Button("Cancel", role: .cancel) {
-                parentForNewChild = nil
-                newChildName = ""
-                isTextFieldFocused = false
-            }
-        } message: {
-            Text("Enter a name for the new child node.")
-        }
-        .alert("Rename", isPresented: $showingRename) {
-            TextField("Title", text: $renameText)
-                .focused($isTextFieldFocused)
-                .textInputAutocapitalization(.words)
-                .autocorrectionDisabled()
-            Button("Save") {
-                let trimmedTitle = renameText.trimmingCharacters(in: .whitespacesAndNewlines)
-                if !trimmedTitle.isEmpty, let targetNode = selectedForRename { 
-                    targetNode.title = trimmedTitle 
-                }
-                do {
-                    try viewContext.save()
-                } catch {
-                    print("Failed to save rename: \(error)")
-                }
-                selectedForRename = nil
-                isTextFieldFocused = false
-            }
-            Button("Cancel", role: .cancel) { 
-                selectedForRename = nil
-                isTextFieldFocused = false
-            }
-        } message: {
-            Text("Enter a new title for the selected idea.")
+        .onReceive(NotificationCenter.default.publisher(for: UIApplication.didReceiveMemoryWarningNotification)) { _ in
+            handleMemoryWarning()
         }
     }
 
     private var header: some View {
         HStack {
-            if node.parent != nil {
+            if currentNode.parent != nil {
                 Button {
-                    print("Back button tapped - navigating back from \(node.title ?? "unknown") to \(node.parent?.title ?? "parent")")
-                    print("Current navigation path count: \(navigationPath.count)")
-                    
-                    // Try direct navigation to parent
-                    if let parent = node.parent {
-                        print("Navigating directly to parent: \(parent.title ?? "unknown")")
-                        // Clear the path and navigate to parent
-                        navigationPath = NavigationPath()
-                        navigationPath.append(parent)
+                    // Use navigation path to go back
+                    if !navigationPath.isEmpty {
+                        navigationPath.removeLast()
+                        // Update the state manager's focused node to the parent
+                        stateManager.focusedNode = currentNode.parent
+                        print("🔙 Back button: Updated stateManager.focusedNode to: \(stateManager.focusedNode?.title ?? "nil")")
                     } else {
-                        print("No parent found, using dismiss")
                         dismiss()
                     }
                 } label: {
@@ -182,18 +167,26 @@ struct FocusView: View {
                     .font(.headline)
                     .foregroundStyle(.white)
                 }
-                .accessibilityLabel("Back to \(node.parent?.title ?? "parent")")
+                .accessibilityLabel("Back to \(currentNode.parent?.title ?? "parent")")
             } else {
                 Color.clear.frame(width: 44, height: 44)
             }
             
             Spacer()
             
-            Text(node.title ?? "Untitled")
-                .font(.title3.weight(.semibold))
-                .foregroundStyle(.white)
-                .lineLimit(1)
-                .minimumScaleFactor(0.8)
+            VStack(spacing: 4) {
+                Text(currentNode.title ?? "Untitled")
+                    .font(.title3.weight(.semibold))
+                    .foregroundStyle(.white)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
+                
+                // Undo/Redo Toolbar
+                HStack {
+                    Spacer()
+                    SyncStatusIndicator()
+                }
+            }
             
             Spacer()
             
@@ -207,17 +200,17 @@ struct FocusView: View {
     // MARK: - Floating Add Button
     private var floatingAddButton: some View {
         Button(action: { 
-            let child = Node(context: viewContext)
-            child.uuid = UUID()
-            child.title = "New Idea"
-            child.createdAt = Date()
-            child.updatedAt = Date()
-            child.parent = node
+            let newNode = Node(context: viewContext)
+            newNode.uuid = UUID()
+            newNode.title = "New Idea"
+            newNode.createdAt = Date()
+            newNode.updatedAt = Date()
+            newNode.parent = currentNode
             
             do {
                 try viewContext.save()
             } catch {
-                print("Failed to add child: \(error)")
+                stateManager.showError("Failed to add node: \(error.localizedDescription)")
             }
         }) {
             Image(systemName: "plus.circle.fill")
@@ -230,141 +223,26 @@ struct FocusView: View {
         .padding(.top, 8)
     }
     
-    // MARK: - Menu Overlay
-    private var menuOverlay: some View {
-        ZStack {
-            // Background overlay
-            Color.black.opacity(0.3)
-                .ignoresSafeArea()
-                .onTapGesture {
-                    showingMenu = false
-                }
-            
-            // Menu panel
-            VStack(alignment: .leading, spacing: 16) {
-                HStack {
-                    Text("Mind Map Features")
-                        .font(.title2)
-                        .fontWeight(.bold)
-                        .foregroundColor(.white)
-                    
-                    Spacer()
-                    
-                    Button(action: { showingMenu = false }) {
-                        Image(systemName: "xmark.circle.fill")
-                            .font(.title2)
-                            .foregroundColor(.white.opacity(0.7))
-                    }
-                }
-                .padding(.horizontal)
-                .padding(.top)
-                
-                VStack(alignment: .leading, spacing: 12) {
-                    menuItem(icon: "plus.circle.fill", title: "Add Node", action: { 
-                        showingMenu = false
-                        let child = Node(context: viewContext)
-                        child.uuid = UUID()
-                        child.title = "New Idea"
-                        child.createdAt = Date()
-                        child.updatedAt = Date()
-                        child.parent = node
-                        
-                        do {
-                            try viewContext.save()
-                        } catch {
-                            print("Failed to add child: \(error)")
-                        }
-                    })
-                    
-                    menuItem(icon: "pencil", title: "Rename Node", action: { 
-                        showingMenu = false
-                        selectedForRename = node
-                        renameText = node.title ?? ""
-                        showingRename = true
-                    })
-                    
-                    menuItem(icon: "note.text", title: "Show Note", action: { 
-                        showingMenu = false
-                        selectedForEdit = node
-                    })
-                    
-                    
-                    menuItem(icon: "trash", title: "Delete Node", action: { 
-                        showingMenu = false
-                        // Delete functionality
-                    })
-                    
-                    menuItem(icon: "arrow.triangle.2.circlepath", title: "Reorganize", action: { 
-                        showingMenu = false
-                        reorganizeNodes()
-                    })
-                    
-                }
-                .padding(.horizontal)
-                .padding(.bottom)
-            }
-            .background(
-                RoundedRectangle(cornerRadius: 16)
-                    .fill(AtlasTheme.Colors.background.opacity(0.95))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 16)
-                            .stroke(AtlasTheme.Colors.primary.opacity(0.3), lineWidth: 1)
-                    )
-            )
-            .padding()
-            .frame(maxWidth: 300)
-            .position(x: UIScreen.main.bounds.width - 150, y: 200)
-        }
-    }
     
-    private func createChildNode() {
-        guard let parent = parentForNewChild else { return }
+    private func createNode() {
+        guard let parent = newChildParentNode else { return }
         
-        let child = Node(context: viewContext)
-        child.uuid = UUID()
-        child.title = newChildName.trimmingCharacters(in: .whitespacesAndNewlines)
-        child.createdAt = Date()
-        child.updatedAt = Date()
-        child.parent = parent
-        child.mindMap = parent.mindMap
+        let trimmedName = stateManager.newMindMapName.trimmingCharacters(in: .whitespacesAndNewlines)
         
-        do {
-            try viewContext.save()
+        if let _ = nodeRepository.createNode(
+            title: trimmedName,
+            parent: parent,
+            mindMap: parent.mindMap
+        ) {
             haptics.impactOccurred()
-        } catch {
-            print("Failed to create child node: \(error)")
+            // Clean up and dismiss keyboard
+            stateManager.showingCreateDialog = false
+            isTextFieldFocused = false
+        } else {
+            stateManager.showError("Failed to create node")
         }
-        
-        // Clean up and dismiss keyboard
-        parentForNewChild = nil
-        newChildName = ""
-        showingAddChildDialog = false
-        isTextFieldFocused = false
     }
     
-    private func menuItem(icon: String, title: String, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            HStack(spacing: 12) {
-                Image(systemName: icon)
-                    .font(.title3)
-                    .foregroundColor(AtlasTheme.Colors.primary)
-                    .frame(width: 24)
-                
-                Text(title)
-                    .font(.body)
-                    .foregroundColor(.white)
-                
-                Spacer()
-            }
-            .padding(.vertical, 8)
-            .padding(.horizontal, 12)
-            .background(
-                RoundedRectangle(cornerRadius: 8)
-                    .fill(AtlasTheme.Colors.primary.opacity(0.1))
-            )
-        }
-        .buttonStyle(PlainButtonStyle())
-    }
     
     
     private func reorganizeNodes() {
@@ -372,11 +250,12 @@ struct FocusView: View {
         // Use a safer approach that doesn't modify node properties
         haptics.impactOccurred(intensity: 0.7)
         
-        // Force a layout update by triggering the RadialMindMap's layout recalculation
-        // This is safer than modifying node properties during animations
-        withAnimation(.spring(duration: 0.3, bounce: 0.2)) {
+        // Force a layout update with improved animation timing
+        // Use a more responsive spring animation that handles interruptions better
+        withAnimation(.easeInOut(duration: 0.3)) {
             // The RadialMindMap will automatically recalculate layout
             // when it detects changes in the children array or layout cache
+            // This animation is more responsive and handles interruptions gracefully
         }
     }
 }

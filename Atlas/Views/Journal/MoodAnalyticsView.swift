@@ -214,7 +214,7 @@ struct MoodAnalyticsView: View {
             
             do {
                 let repository = DependencyContainer.shared.journalRepository
-                analytics = try await repository.getMoodAnalytics(for: selectedTimeframe)
+                analytics = try repository.getMoodAnalytics(for: selectedTimeframe)
             } catch {
                 print("Error loading analytics: \(error)")
             }

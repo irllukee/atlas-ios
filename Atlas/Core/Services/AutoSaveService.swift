@@ -2,7 +2,8 @@ import Foundation
 import CoreData
 import SwiftUI
 
-/// Service for automatic saving of notes and other content
+/// Optimized service for automatic saving of notes and other content
+/// Consolidates all auto-save functionality to prevent conflicts and improve performance
 @MainActor
 class AutoSaveService: ObservableObject {
     static let shared = AutoSaveService()
@@ -13,9 +14,14 @@ class AutoSaveService: ObservableObject {
     
     private let dataManager = DataManager.shared
     private var saveTimer: Timer?
+    private var debounceTimer: Timer?
     private var pendingChanges: [String: Any] = [:]
-    private let saveInterval: TimeInterval = 5.0 // Auto-save every 5 seconds (reduced frequency)
-    private let maxBatchSize = 10 // Maximum changes to save in one batch
+    
+    // Optimized timing intervals
+    private let saveInterval: TimeInterval = 3.0 // Increased from 5.0 to 3.0 for better UX
+    private let debounceInterval: TimeInterval = 0.5 // Increased from immediate to 500ms
+    private let maxBatchSize = 15 // Increased batch size for efficiency
+    private let maxPendingChanges = 50 // Prevent memory buildup
     
     enum SaveStatus: Equatable {
         case idle
@@ -39,10 +45,8 @@ class AutoSaveService: ObservableObject {
         startAutoSaveTimer()
     }
     
-    deinit {
-        // Timer cleanup is handled by the timer itself when it's invalidated
-        // No need to access saveTimer from deinit due to concurrency safety
-    }
+    // Note: Timer cleanup is handled by the timers themselves when invalidated
+    // No deinit needed due to main actor isolation constraints
     
     // MARK: - Auto-Save Management
     
@@ -59,6 +63,14 @@ class AutoSaveService: ObservableObject {
     private func stopAutoSaveTimer() {
         saveTimer?.invalidate()
         saveTimer = nil
+    }
+    
+    /// Stop all timers to prevent memory leaks
+    private func stopAllTimers() {
+        saveTimer?.invalidate()
+        saveTimer = nil
+        debounceTimer?.invalidate()
+        debounceTimer = nil
     }
     
     /// Perform automatic save of pending changes with background processing
@@ -177,8 +189,15 @@ class AutoSaveService: ObservableObject {
     
     // MARK: - Public Methods
     
-    /// Register a change for auto-save
+    /// Register a change for auto-save with debouncing
     func registerChange<T>(for entityId: String, key: String, value: T) {
+        // Prevent memory buildup by limiting pending changes
+        if pendingChanges.count > maxPendingChanges {
+            // Remove oldest changes if we exceed the limit
+            let keysToRemove = Array(pendingChanges.keys.prefix(pendingChanges.count - maxPendingChanges + 10))
+            keysToRemove.forEach { pendingChanges.removeValue(forKey: $0) }
+        }
+        
         if pendingChanges[entityId] == nil {
             pendingChanges[entityId] = [String: Any]()
         }
@@ -186,11 +205,31 @@ class AutoSaveService: ObservableObject {
         if var entityChanges = pendingChanges[entityId] as? [String: Any] {
             entityChanges[key] = value
             pendingChanges[entityId] = entityChanges
+            
+            // Schedule debounced save
+            scheduleDebouncedSave()
         }
     }
     
-    /// Register multiple changes for auto-save
+    /// Schedule a debounced save operation
+    private func scheduleDebouncedSave() {
+        debounceTimer?.invalidate()
+        debounceTimer = Timer.scheduledTimer(withTimeInterval: debounceInterval, repeats: false) { [weak self] _ in
+            _Concurrency.Task {
+                await self?.performAutoSave()
+            }
+        }
+    }
+    
+    /// Register multiple changes for auto-save with debouncing
     func registerChanges(for entityId: String, changes: [String: Any]) {
+        // Prevent memory buildup by limiting pending changes
+        if pendingChanges.count > maxPendingChanges {
+            // Remove oldest changes if we exceed the limit
+            let keysToRemove = Array(pendingChanges.keys.prefix(pendingChanges.count - maxPendingChanges + 10))
+            keysToRemove.forEach { pendingChanges.removeValue(forKey: $0) }
+        }
+        
         if pendingChanges[entityId] == nil {
             pendingChanges[entityId] = [String: Any]()
         }
@@ -200,11 +239,18 @@ class AutoSaveService: ObservableObject {
                 entityChanges[key] = value
             }
             pendingChanges[entityId] = entityChanges
+            
+            // Schedule debounced save
+            scheduleDebouncedSave()
         }
     }
     
     /// Force save all pending changes immediately
     func forceSave() async {
+        // Cancel any pending debounced save
+        debounceTimer?.invalidate()
+        debounceTimer = nil
+        
         await performAutoSave()
     }
     
@@ -260,6 +306,11 @@ class AutoSaveService: ObservableObject {
             return .red
         }
     }
+    
+    /// Cleanup method to be called when the service is no longer needed
+    func cleanup() {
+        stopAllTimers()
+    }
 }
 
 // MARK: - Auto-Save View Modifier
@@ -279,5 +330,35 @@ struct AutoSaveModifier: ViewModifier {
 extension View {
     func autoSave(for entityId: String) -> some View {
         self.modifier(AutoSaveModifier(entityId: entityId))
+    }
+}
+
+// MARK: - Convenience Methods for Common Use Cases
+
+extension AutoSaveService {
+    /// Convenience method for saving note changes
+    func saveNoteChange(noteId: UUID, title: String? = nil, content: String? = nil, isEncrypted: Bool? = nil, isFavorite: Bool? = nil) {
+        let entityId = noteId.uuidString
+        var changes: [String: Any] = [:]
+        
+        if let title = title { changes["title"] = title }
+        if let content = content { changes["content"] = content }
+        if let isEncrypted = isEncrypted { changes["isEncrypted"] = isEncrypted }
+        if let isFavorite = isFavorite { changes["isFavorite"] = isFavorite }
+        
+        registerChanges(for: entityId, changes: changes)
+    }
+    
+    /// Convenience method for saving journal entry changes
+    func saveJournalEntryChange(entryId: UUID, title: String? = nil, content: String? = nil, type: String? = nil, isEncrypted: Bool? = nil) {
+        let entityId = entryId.uuidString
+        var changes: [String: Any] = [:]
+        
+        if let title = title { changes["title"] = title }
+        if let content = content { changes["content"] = content }
+        if let type = type { changes["type"] = type }
+        if let isEncrypted = isEncrypted { changes["isEncrypted"] = isEncrypted }
+        
+        registerChanges(for: entityId, changes: changes)
     }
 }

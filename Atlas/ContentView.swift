@@ -14,15 +14,15 @@ struct ContentView: View {
     @StateObject private var dashboardDataService: DashboardDataService
     @StateObject private var profilePictureService = ProfilePictureService.shared
     
+    // Menu properties
+    private let menuWidth: CGFloat = 280
+    private let maxDragDistance: CGFloat = 50
+    
     // Animation states for dashboard
     @State private var headerOpacity: Double = 0
     @State private var headerOffset: CGFloat = 30
     @State private var statsOpacity: Double = 0
     @State private var statsOffset: CGFloat = 30
-    
-    // Menu configuration
-    private let menuWidth: CGFloat = UIScreen.main.bounds.width * 0.6
-    private let maxDragDistance: CGFloat = 50
     
     // MARK: - Initialization
     init() {
@@ -33,7 +33,7 @@ struct ContentView: View {
     
     var body: some View {
         GeometryReader { geometry in
-        ZStack {
+            ZStack {
                 // Swipe Menu (background layer)
                 SwipeMenuView(
                     isOpen: $isMenuOpen,
@@ -44,22 +44,21 @@ struct ContentView: View {
                 .zIndex(0)
                 
                 // Main Content (slides over when menu opens)
-            currentView
+                selectedViewContent
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .offset(x: isMenuOpen ? menuWidth + dragOffset : dragOffset)
-                    .animation(.spring(response: 0.5, dampingFraction: 0.8, blendDuration: 0.1), value: isMenuOpen)
-                    .animation(.spring(response: 0.3, dampingFraction: 0.9, blendDuration: 0.1), value: dragOffset)
+                    .animation(AtlasTheme.Animations.optimizedSpring, value: isMenuOpen)
                     .zIndex(1)
                     .onTapGesture {
                         if isMenuOpen {
-                            withAnimation(.spring(response: 0.5, dampingFraction: 0.8, blendDuration: 0.1)) {
+                            withAnimation(AtlasTheme.Animations.optimizedSpring) {
                                 isMenuOpen = false
                                 dragOffset = 0
                             }
                         }
                     }
                     .gesture(
-                        DragGesture()
+                        DragGesture(minimumDistance: 10) // Added minimum distance to prevent accidental drags
                             .onChanged { value in
                                 handleDragChanged(value, in: geometry)
                             }
@@ -84,73 +83,200 @@ struct ContentView: View {
         .withErrorHandling()
     }
     
-    // MARK: - Current View
-    @ViewBuilder
-    private var currentView: some View {
-        switch selectedView {
-        case .dashboard:
-            dashboardView
-        case .notes:
-            NotesListView()
-        case .journal:
-            JournalView()
-        case .tasks:
-            TasksView()
-        case .watchlist:
-            WatchlistView(dataManager: dataManager)
-        case .recipes:
-            RecipesView()
-        case .mindMapping:
-            MindMappingView(dataManager: dataManager)
-        case .profile:
-            ProfileView()
-    }
-}
+    // MARK: - Current View (removed - using selectedViewContent instead)
+    
 
-// MARK: - Dashboard View
+    // MARK: - View Selection
+    private var selectedViewContent: some View {
+        Group {
+            switch selectedView {
+            case .dashboard:
+                dashboardView
+            case .journal:
+                JournalView()
+            case .notes:
+                NotesListView()
+            case .tasks:
+                TasksView()
+            case .watchlist:
+                WatchlistView(dataManager: dataManager)
+            case .recipes:
+                RecipesView()
+            case .eatDo:
+                EatDoView()
+            case .mindMapping:
+                MindMappingViewV2(dataManager: dataManager)
+            case .profile:
+                ProfileView()
+            }
+        }
+    }
+    
+    // MARK: - Side Menu
+    private var sideMenu: some View {
+        HStack {
+            sideMenuContent
+            Spacer()
+        }
+    }
+    
+    private var sideMenuContent: some View {
+        VStack(alignment: .leading, spacing: 20) {
+            sideMenuHeader
+            sideMenuItems
+            Spacer()
+            sideMenuFooter
+        }
+        .frame(width: menuWidth)
+        .background(AtlasTheme.Colors.background.edgesIgnoringSafeArea(.all))
+        .offset(x: isMenuOpen ? 0 : -menuWidth)
+        .animation(.spring(response: 0.5, dampingFraction: 0.8, blendDuration: 0.1), value: isMenuOpen)
+    }
+    
+    private var sideMenuHeader: some View {
+        HStack {
+            Text("Atlas")
+                .font(.largeTitle)
+                .fontWeight(.bold)
+                .foregroundColor(AtlasTheme.Colors.primary)
+            
+            Spacer()
+            
+            Button(action: {
+                withAnimation(.easeInOut(duration: 0.3)) {
+                    isMenuOpen = false
+                }
+            }) {
+                Image(systemName: "xmark")
+                    .font(.title2)
+                    .foregroundColor(AtlasTheme.Colors.primary)
+            }
+        }
+        .padding(.top, 50)
+        .padding(.horizontal, 20)
+    }
+    
+    private var sideMenuItems: some View {
+        VStack(alignment: .leading, spacing: 15) {
+            ForEach(AppView.allCases, id: \.self) { view in
+                sideMenuItem(for: view)
+            }
+        }
+        .padding(.horizontal, 20)
+    }
+    
+    private func sideMenuItem(for view: AppView) -> some View {
+        Button(action: {
+            // Add small delay to prevent rapid navigation updates
+            _Concurrency.Task { @MainActor in
+                try? await _Concurrency.Task.sleep(nanoseconds: 50_000_000) // 50ms delay
+                selectedView = view
+            }
+            withAnimation(.easeInOut(duration: 0.3)) {
+                isMenuOpen = false
+            }
+        }) {
+            HStack {
+                Image(systemName: view.iconName)
+                    .font(.title2)
+                    .foregroundColor(selectedView == view ? AtlasTheme.Colors.primary : AtlasTheme.Colors.secondary)
+                    .frame(width: 30)
+                
+                Text(view.title)
+                    .font(.headline)
+                    .foregroundColor(selectedView == view ? AtlasTheme.Colors.primary : AtlasTheme.Colors.secondary)
+                
+                Spacer()
+            }
+            .padding(.vertical, 8)
+            .padding(.horizontal, 15)
+            .background(
+                RoundedRectangle(cornerRadius: 10)
+                    .fill(selectedView == view ? AtlasTheme.Colors.primary.opacity(0.1) : Color.clear)
+            )
+        }
+    }
+    
+    private var sideMenuFooter: some View {
+        VStack(alignment: .leading, spacing: 15) {
+            Button(action: {
+                // Handle settings
+            }) {
+                HStack {
+                    Image(systemName: "gearshape.fill")
+                        .font(.title2)
+                        .foregroundColor(AtlasTheme.Colors.secondary)
+                    Text("Settings")
+                        .font(.title2)
+                        .fontWeight(.medium)
+                        .foregroundColor(AtlasTheme.Colors.secondary)
+                }
+            }
+            Button(action: {
+                securityManager.logout()
+            }) {
+                HStack {
+                    Image(systemName: "arrow.right.square.fill")
+                        .font(.title2)
+                        .foregroundColor(AtlasTheme.Colors.secondary)
+                    Text("Logout")
+                        .font(.title2)
+                        .fontWeight(.medium)
+                        .foregroundColor(AtlasTheme.Colors.secondary)
+                }
+            }
+        }
+        .padding(.horizontal, 20)
+        .padding(.bottom, 30)
+    }
+    
+    // MARK: - Dashboard View
     private var dashboardView: some View {
         ZStack {
             // Background gradient
             AtlasTheme.Colors.background
                 .ignoresSafeArea()
             
-        ScrollView {
-                LazyVStack(spacing: 0) {
+            ScrollView {
+                LazyVStack(spacing: 20) {
                     // Modern Header Section
                     modernHeaderSection
                         .opacity(headerOpacity)
                         .offset(y: headerOffset)
-                        .animation(AtlasTheme.Animations.gentle.delay(0.1), value: headerOpacity)
-                        .animation(AtlasTheme.Animations.gentle.delay(0.1), value: headerOffset)
                     
                     // Quick Stats Grid
                     quickStatsGrid
                         .opacity(statsOpacity)
                         .offset(y: statsOffset)
-                        .animation(AtlasTheme.Animations.gentle.delay(0.2), value: statsOpacity)
-                        .animation(AtlasTheme.Animations.gentle.delay(0.2), value: statsOffset)
-                    
                     
                     // Bottom Spacing
-                    Spacer(minLength: 80)
+                    Spacer(minLength: 120) // Increased for floating action buttons
+                }
+                .padding(.horizontal, 20)
+            }
+            .onAppear {
+                // Refresh dashboard data
+                dashboardDataService.loadDashboardData()
+                
+                // Single coordinated animation to prevent AnimatablePair conflicts
+                withAnimation(.easeOut(duration: 0.8).delay(0.1)) {
+                    headerOpacity = 1
+                    headerOffset = 0
+                    statsOpacity = 1
+                    statsOffset = 0
                 }
             }
-                   .onAppear {
-                       // Refresh dashboard data
-                       dashboardDataService.loadDashboardData()
-                       
-                       // Animate dashboard sections
-                       withAnimation(AtlasTheme.Animations.gentle.delay(0.1)) {
-                           headerOpacity = 1
-                           headerOffset = 0
-                       }
-                       
-                       withAnimation(AtlasTheme.Animations.gentle.delay(0.2)) {
-                           statsOpacity = 1
-                           statsOffset = 0
-                       }
-                       
-                   }
+            
+            // Floating Action Buttons
+            VStack {
+                Spacer()
+                HStack {
+                    Spacer()
+                    QuickActionButtons(selectedView: $selectedView)
+                        .padding(.trailing, 20)
+                        .padding(.bottom, 100)
+                }
+            }
         }
     }
     
@@ -228,6 +354,7 @@ struct ContentView: View {
             }
             .padding(.horizontal, 20)
             .padding(.top, 10)
+            
         }
     }
     
@@ -250,7 +377,7 @@ struct ContentView: View {
                     progress: 0.6, // TODO: Calculate notes progress
                     action: {
                         selectedView = .notes
-                        withAnimation(.spring(response: 0.5, dampingFraction: 0.8, blendDuration: 0.1)) {
+                        withAnimation(AtlasTheme.Animations.optimizedSpring) {
                             isMenuOpen = false
                         }
                     }
@@ -268,7 +395,7 @@ struct ContentView: View {
                     progress: 0.3, // TODO: Calculate journal progress
                     action: {
                         selectedView = .journal
-                        withAnimation(.spring(response: 0.5, dampingFraction: 0.8, blendDuration: 0.1)) {
+                        withAnimation(AtlasTheme.Animations.optimizedSpring) {
                             isMenuOpen = false
                         }
                     }
@@ -286,7 +413,7 @@ struct ContentView: View {
                     progress: 0.5, // TODO: Calculate tasks progress
                     action: {
                         selectedView = .tasks
-                        withAnimation(.spring(response: 0.5, dampingFraction: 0.8, blendDuration: 0.1)) {
+                        withAnimation(AtlasTheme.Animations.optimizedSpring) {
                             isMenuOpen = false
                         }
                     }
@@ -338,12 +465,16 @@ struct ContentView: View {
         if startLocation <= maxDragDistance {
             isDragging = true
             
-            if !isMenuOpen {
-                // Opening gesture - menu slides in from left
-                dragOffset = min(translation, menuWidth)
+            // Throttle updates to reduce navigation observer warnings
+            let newOffset = if !isMenuOpen {
+                min(translation, menuWidth)
             } else {
-                // Closing gesture - menu slides out to left
-                dragOffset = min(translation, 0)
+                min(translation, 0)
+            }
+            
+            // Only update if the change is significant enough
+            if abs(newOffset - dragOffset) > 2 {
+                dragOffset = newOffset
             }
         }
     }
@@ -358,24 +489,24 @@ struct ContentView: View {
         if !isMenuOpen {
             // Opening gesture ended - more sensitive to velocity
             if translation > menuWidth * 0.25 || velocity > 300 {
-                withAnimation(.spring(response: 0.5, dampingFraction: 0.8, blendDuration: 0.1)) {
+                withAnimation(AtlasTheme.Animations.optimizedSpring) {
                     isMenuOpen = true
                     dragOffset = 0
                 }
             } else {
-                withAnimation(.spring(response: 0.3, dampingFraction: 0.9, blendDuration: 0.1)) {
+                withAnimation(AtlasTheme.Animations.optimizedGentle) {
                     dragOffset = 0
                 }
             }
         } else {
             // Closing gesture ended - more sensitive to velocity
             if translation < -30 || velocity < -300 {
-                withAnimation(.spring(response: 0.5, dampingFraction: 0.8, blendDuration: 0.1)) {
+                withAnimation(AtlasTheme.Animations.optimizedSpring) {
                     isMenuOpen = false
                     dragOffset = 0
                 }
             } else {
-                withAnimation(.spring(response: 0.3, dampingFraction: 0.9, blendDuration: 0.1)) {
+                withAnimation(AtlasTheme.Animations.optimizedGentle) {
                     dragOffset = 0
                 }
             }
@@ -383,6 +514,7 @@ struct ContentView: View {
     }
     
     // MARK: - Navigation Bar Configuration
+    @MainActor
     private func configureNavigationBar() {
         let appearance = UINavigationBarAppearance()
         appearance.configureWithTransparentBackground()
@@ -429,8 +561,6 @@ struct LifeModuleCard: View {
         }
         .padding(.vertical, 8)
     }
-    
-    
 }
 
 #Preview {

@@ -18,6 +18,7 @@ struct SwipeMenuView: View {
         (.tasks, "checkmark.circle", "Tasks"),
         (.watchlist, "tv", "Watchlist"),
         (.recipes, "fork.knife", "Recipes"),
+        (.eatDo, "location.fill", "Eat & Do"),
         (.mindMapping, "brain.head.profile", "Mind Mapping"),
         (.profile, "person.circle", "Profile")
     ]

@@ -64,7 +64,7 @@ struct BubbleView: View {
             )
             
             BubbleView(
-                title: "Child Node",
+                title: "Node",
                 hasNote: false,
                 isCenter: false
             )

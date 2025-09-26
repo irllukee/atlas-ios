@@ -12,6 +12,7 @@ class MemoryPressureService: ObservableObject {
     @Published var isOptimizing = false
     
     private var cancellables = Set<AnyCancellable>()
+    private var memoryMonitoringCancellable: AnyCancellable?
     private let performanceService = PerformanceService.shared
     
     enum MemoryPressureLevel: String, CaseIterable {
@@ -51,12 +52,11 @@ class MemoryPressureService: ObservableObject {
     
     private func setupMemoryMonitoring() {
         // Monitor memory usage every 5 seconds
-        Timer.publish(every: 5.0, on: .main, in: .common)
+        memoryMonitoringCancellable = Timer.publish(every: 5.0, on: .main, in: .common)
             .autoconnect()
             .sink { [weak self] _ in
                 self?.updateMemoryUsage()
             }
-            .store(in: &cancellables)
     }
     
     private func setupMemoryWarningObserver() {
@@ -275,6 +275,20 @@ class MemoryPressureService: ObservableObject {
             return "Critical memory pressure"
         }
     }
+    
+    /// Cleanup method for proper resource management
+    func cleanup() {
+        memoryMonitoringCancellable?.cancel()
+        memoryMonitoringCancellable = nil
+        
+        cancellables.removeAll()
+        
+        // Remove memory warning observer
+        NotificationCenter.default.removeObserver(self, name: UIApplication.didReceiveMemoryWarningNotification, object: nil)
+    }
+    
+    // Note: Cancellable cleanup is handled automatically when the service is deallocated
+    // No deinit needed due to Swift 6 concurrency safety constraints
     
 }
 

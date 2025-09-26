@@ -14,15 +14,25 @@ struct GlassBackgroundView: View {
             )
             .ignoresSafeArea()
 
-            // Optimized frosted "plates" with reduced blur complexity
+            // Optimized frosted "plates" using static gradients instead of expensive materials
             ForEach(0..<2, id: \.self) { i in
                 RoundedRectangle(cornerRadius: 20, style: .continuous)
-                    .fill(.thinMaterial) // Changed from ultraThinMaterial for better performance
+                    .fill(
+                        LinearGradient(
+                            colors: [
+                                Color.white.opacity(0.08),
+                                Color.white.opacity(0.03),
+                                Color.clear
+                            ],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
                     .overlay(
                         RoundedRectangle(cornerRadius: 20)
                             .stroke(.white.opacity(0.06), lineWidth: 0.5)
                     )
-                    .blur(radius: 4) // Reduced from 8
+                    // Removed blur for better performance - using gradient instead
                     .frame(width: 240 + CGFloat(i)*60, height: 160 + CGFloat(i)*40)
                     .offset(
                         x: parallaxOffset.width * (0.05 + CGFloat(i)*0.015) + CGFloat(i*30) - 80,
@@ -31,22 +41,43 @@ struct GlassBackgroundView: View {
                     .opacity(0.2 - Double(i)*0.08)
             }
 
-            // Optimized bokeh orbs with reduced blur
+            // Optimized bokeh orbs using radial gradients instead of blur
             Circle()
-                .fill(AtlasTheme.Colors.primary.opacity(0.18))
+                .fill(
+                    RadialGradient(
+                        colors: [
+                            AtlasTheme.Colors.primary.opacity(0.15),
+                            AtlasTheme.Colors.primary.opacity(0.08),
+                            Color.clear
+                        ],
+                        center: .center,
+                        startRadius: 0,
+                        endRadius: 140
+                    )
+                )
                 .frame(width: 280, height: 280)
-                .blur(radius: 40) // Reduced from 60
                 .offset(x: -120 + parallaxOffset.width * 0.025,
                         y: 180 + parallaxOffset.height * 0.015)
 
             Circle()
-                .fill(.white.opacity(0.1))
+                .fill(
+                    RadialGradient(
+                        colors: [
+                            Color.white.opacity(0.08),
+                            Color.white.opacity(0.04),
+                            Color.clear
+                        ],
+                        center: .center,
+                        startRadius: 0,
+                        endRadius: 90
+                    )
+                )
                 .frame(width: 180, height: 180)
-                .blur(radius: 35) // Reduced from 50
                 .offset(x: 150 + parallaxOffset.width * -0.015,
                         y: -140 + parallaxOffset.height * -0.025)
         }
-        .drawingGroup()
+        // Only use drawingGroup for complex compositions - gradients are already optimized
+        // .drawingGroup() // Removed for better performance
     }
 }
 

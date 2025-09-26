@@ -73,6 +73,12 @@
       "size" : "1024x1024"
     },
     {
+      "filename" : "appstore.png",
+      "idiom" : "ios-marketing",
+      "scale" : "1x",
+      "size" : "1024x1024"
+    },
+    {
       "filename" : "80.png",
       "idiom" : "ipad",
       "scale" : "2x",

@@ -145,7 +145,7 @@ struct AtlasTheme {
         static let xlarge = Shadow(color: Colors.glassShadow, radius: 24, x: 0, y: 12)
     }
     
-    // MARK: - Animations
+    // MARK: - Animations (Optimized for Performance)
     struct Animations {
         static let quick = SwiftUI.Animation.easeInOut(duration: 0.2)
         static let smooth = SwiftUI.Animation.easeInOut(duration: 0.3)
@@ -153,6 +153,10 @@ struct AtlasTheme {
         static let bouncy = SwiftUI.Animation.spring(response: 0.4, dampingFraction: 0.6)
         static let gentle = SwiftUI.Animation.easeOut(duration: 0.4)
         static let snappy = SwiftUI.Animation.spring(response: 0.3, dampingFraction: 0.9)
+        
+        // Performance-optimized animations
+        static let optimizedSpring = SwiftUI.Animation.spring(response: 0.4, dampingFraction: 0.85)
+        static let optimizedGentle = SwiftUI.Animation.easeOut(duration: 0.3)
     }
     
     // MARK: - Haptic Feedback
@@ -244,7 +248,6 @@ struct GlassmorphismModifier: ViewModifier {
                         .stroke(borderColor, lineWidth: borderWidth)
                 }
                 .shadow(color: shadowColor, radius: shadowRadius, x: 0, y: shadowOffset)
-                .shadow(color: shadowColor.opacity(0.3), radius: shadowRadius * 2, x: 0, y: shadowOffset * 2)
             )
     }
     

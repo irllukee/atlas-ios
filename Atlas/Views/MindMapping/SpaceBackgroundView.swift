@@ -4,6 +4,7 @@ struct SpaceBackgroundView: View {
     @State private var starPositions: [CGPoint] = []
     @State private var distantStarPositions: [CGPoint] = []
     @State private var nebulaPositions: [CGPoint] = []
+    @State private var cachedStarTexture: UIImage?
     
     var body: some View {
         GeometryReader { geometry in
@@ -20,29 +21,30 @@ struct SpaceBackgroundView: View {
                 )
                 .ignoresSafeArea()
                 
-                // Use Canvas for efficient star rendering
-                Canvas { context, size in
-                    // Draw static stars
-                    for position in starPositions {
-                        context.fill(
-                            Path(ellipseIn: CGRect(x: position.x, y: position.y, width: 1, height: 1)),
-                            with: .color(.white)
-                        )
-                    }
-                    
-                    // Draw distant stars
-                    for position in distantStarPositions {
-                        context.fill(
-                            Path(ellipseIn: CGRect(x: position.x, y: position.y, width: 0.5, height: 0.5)),
-                            with: .color(.white.opacity(0.3))
-                        )
+                // Use cached star texture for optimal performance
+                Group {
+                    if let starTexture = cachedStarTexture {
+                        Image(uiImage: starTexture)
+                            .resizable()
+                            .aspectRatio(contentMode: .fill)
+                            .frame(width: geometry.size.width, height: geometry.size.height)
+                            .clipped()
+                    } else {
+                        // Fallback while texture is being generated
+                        Color.clear
+                            .frame(width: geometry.size.width, height: geometry.size.height)
                     }
                 }
                 .onAppear {
                     generateStarPositions(for: geometry.size)
+                    generateStarTexture(for: geometry.size)
                 }
-                .onChange(of: geometry.size) { newSize in
+                .onChange(of: geometry.size) { _, newSize in
                     generateStarPositions(for: newSize)
+                    generateStarTexture(for: newSize)
+                }
+                .onReceive(NotificationCenter.default.publisher(for: UIApplication.didReceiveMemoryWarningNotification)) { _ in
+                    handleMemoryWarning()
                 }
                 
                 // Nebula clouds (only 3, with reduced blur for performance)
@@ -65,7 +67,7 @@ struct SpaceBackgroundView: View {
                             x: CGFloat(index * 200 - 200),
                             y: CGFloat(index * 150 - 150)
                         )
-                        .blur(radius: 15) // Reduced from 20
+                        .blur(radius: 8) // Further optimized for performance
                 }
             }
         }
@@ -86,6 +88,49 @@ struct SpaceBackgroundView: View {
                 y: CGFloat.random(in: 0...size.height)
             )
         }
+    }
+    
+    private func generateStarTexture(for size: CGSize) {
+        // Capture star positions on main thread before background work
+        let stars = starPositions
+        let distantStars = distantStarPositions
+        
+        // Generate cached texture on background queue for better performance
+        DispatchQueue.global(qos: .userInitiated).async {
+            let renderer = UIGraphicsImageRenderer(size: size)
+            let image = renderer.image { context in
+                let cgContext = context.cgContext
+                
+                // Set background to clear
+                cgContext.clear(CGRect(origin: .zero, size: size))
+                
+                // Draw static stars
+                cgContext.setFillColor(UIColor.white.cgColor)
+                for position in stars {
+                    cgContext.fillEllipse(in: CGRect(x: position.x, y: position.y, width: 1, height: 1))
+                }
+                
+                // Draw distant stars with reduced opacity
+                cgContext.setFillColor(UIColor.white.withAlphaComponent(0.3).cgColor)
+                for position in distantStars {
+                    cgContext.fillEllipse(in: CGRect(x: position.x, y: position.y, width: 0.5, height: 0.5))
+                }
+            }
+            
+            DispatchQueue.main.async {
+                self.cachedStarTexture = image
+            }
+        }
+    }
+    
+    private func handleMemoryWarning() {
+        print("🧠 Memory warning in SpaceBackgroundView - clearing cached texture")
+        
+        // Clear the cached star texture to free memory
+        cachedStarTexture = nil
+        
+        // Note: Star positions are kept as they're small and essential for rendering
+        // The texture will be regenerated when needed
     }
 }
 

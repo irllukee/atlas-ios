@@ -20,7 +20,7 @@ protocol EncryptionServiceProtocol {
 }
 
 // MARK: - Encryption Service Implementation
-class EncryptionService: EncryptionServiceProtocol {
+final class EncryptionService: @unchecked Sendable, EncryptionServiceProtocol {
     private let keyIdentifier = "atlas.journal.encryption.key"
     
     func encrypt(_ text: String) throws -> EncryptedData {

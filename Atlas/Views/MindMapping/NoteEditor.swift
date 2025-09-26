@@ -12,63 +12,168 @@ struct NoteEditor: View, @preconcurrency Identifiable {
     @State private var hasChanges = false
     @State private var isLoaded = false
     @State private var saveWorkItem: DispatchWorkItem?
+    @State private var errorMessage: String?
+    @State private var showingErrorAlert = false
+    @State private var titleValidationError: String?
+    @State private var noteValidationError: String?
+    
+    // Data validation constants
+    private let maxTitleLength = 100
+    private let maxNoteLength = 10000
+    private let minTitleLength = 1
+    
+    private func showError(_ message: String) {
+        errorMessage = message
+        showingErrorAlert = true
+    }
+    
+    private func handleMemoryWarning() {
+        print("🧠 Memory warning in NoteEditor - canceling pending saves")
+        
+        // Cancel any pending save operations to free up resources
+        saveWorkItem?.cancel()
+        saveWorkItem = nil
+        
+        // Note: Text content is kept as it's essential for user experience
+        // The save operation will be retried when the user makes changes
+    }
+    
+    private func validateTitle(_ title: String) -> String? {
+        let trimmed = title.trimmingCharacters(in: .whitespacesAndNewlines)
+        
+        if trimmed.isEmpty {
+            return "Title cannot be empty"
+        }
+        
+        if trimmed.count < minTitleLength {
+            return "Title must be at least \(minTitleLength) character"
+        }
+        
+        if title.count > maxTitleLength {
+            return "Title must be \(maxTitleLength) characters or less"
+        }
+        
+        return nil
+    }
+    
+    private func validateNote(_ note: String) -> String? {
+        if note.count > maxNoteLength {
+            return "Note must be \(maxNoteLength) characters or less"
+        }
+        
+        return nil
+    }
 
     var body: some View {
         NavigationView {
-            Form {
-                Section("Title") {
-                    TextField("Idea", text: $title)
-                        .textInputAutocapitalization(.sentences)
-                        .submitLabel(.done)
-                        .accessibilityLabel("Title field")
-                        .onChange(of: title) { 
-                            hasChanges = true
-                            saveDebounced()
+            ScrollViewReader { proxy in
+                Form {
+                    Section("Title") {
+                        TextField("Idea", text: $title)
+                            .textInputAutocapitalization(.sentences)
+                            .submitLabel(.done)
+                            .accessibilityLabel("Title field")
+                            .id("titleField")
+                            .onChange(of: title) { 
+                                hasChanges = true
+                                titleValidationError = validateTitle(title)
+                                saveDebounced()
+                            }
+                            .onTapGesture {
+                                withAnimation(.easeInOut(duration: 0.3)) {
+                                    proxy.scrollTo("titleField", anchor: .center)
+                                }
+                            }
+                        
+                        // Character count and validation feedback
+                        HStack {
+                            Spacer()
+                            Text("\(title.count)/\(maxTitleLength)")
+                                .font(.caption)
+                                .foregroundColor(title.count > maxTitleLength ? .red : .secondary)
                         }
-                }
-                Section("Note") {
-                    TextEditor(text: $note)
-                        .frame(minHeight: 200)
-                        .accessibilityLabel("Note text")
-                        .onChange(of: note) { 
-                            hasChanges = true
-                            saveDebounced()
+                        
+                        if let titleError = titleValidationError {
+                            Text(titleError)
+                                .font(.caption)
+                                .foregroundColor(.red)
                         }
-                }
-                
-                Section {
-                    HStack {
-                        Text("Created")
-                        Spacer()
-                        Text((node.createdAt ?? Date()).formatted(date: .abbreviated, time: .shortened))
-                            .foregroundColor(.secondary)
+                    }
+                    Section("Note") {
+                        TextEditor(text: $note)
+                            .frame(minHeight: 200)
+                            .accessibilityLabel("Note text")
+                            .id("noteEditor")
+                            .onChange(of: note) { 
+                                hasChanges = true
+                                noteValidationError = validateNote(note)
+                                saveDebounced()
+                            }
+                            .onTapGesture {
+                                withAnimation(.easeInOut(duration: 0.3)) {
+                                    proxy.scrollTo("noteEditor", anchor: .center)
+                                }
+                            }
+                        
+                        // Character count and validation feedback
+                        HStack {
+                            Spacer()
+                            Text("\(note.count)/\(maxNoteLength)")
+                                .font(.caption)
+                                .foregroundColor(note.count > maxNoteLength ? .red : .secondary)
+                        }
+                        
+                        if let noteError = noteValidationError {
+                            Text(noteError)
+                                .font(.caption)
+                                .foregroundColor(.red)
+                        }
+                    }
+                    
+                    Section {
+                        HStack {
+                            Text("Created")
+                            Spacer()
+                            Text((node.createdAt ?? Date()).formatted(date: .abbreviated, time: .shortened))
+                                .foregroundColor(.secondary)
+                        }
                     }
                 }
-            }
-            .navigationTitle("Edit")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    Button("Cancel") { 
-                        if hasChanges {
-                            // Could add confirmation alert here
+                .navigationTitle("Edit")
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    ToolbarItem(placement: .navigationBarLeading) {
+                        Button("Cancel") { 
+                            if hasChanges {
+                                // Could add confirmation alert here
+                            }
+                            dismiss() 
                         }
-                        dismiss() 
+                    }
+                    ToolbarItem(placement: .navigationBarTrailing) {
+                        Button("Save") { save() }
+                            .keyboardShortcut(.defaultAction)
+                            .disabled(!hasChanges || titleValidationError != nil || noteValidationError != nil)
                     }
                 }
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Save") { save() }
-                        .keyboardShortcut(.defaultAction)
-                        .disabled(!hasChanges)
+                .task {
+                    // Load data off main thread to prevent UI blocking
+                    await loadNodeData()
                 }
-            }
-            .task {
-                // Load data off main thread to prevent UI blocking
-                await loadNodeData()
-            }
-            .onDisappear {
-                // Cancel any pending save operations
-                saveWorkItem?.cancel()
+                .onDisappear {
+                    // Cancel any pending save operations
+                    saveWorkItem?.cancel()
+                }
+                .alert("Error", isPresented: $showingErrorAlert) {
+                    Button("OK", role: .cancel) {
+                        errorMessage = nil
+                    }
+                } message: {
+                    Text(errorMessage ?? "An unknown error occurred")
+                }
+                .onReceive(NotificationCenter.default.publisher(for: UIApplication.didReceiveMemoryWarningNotification)) { _ in
+                    handleMemoryWarning()
+                }
             }
         }
     }
@@ -104,13 +209,11 @@ struct NoteEditor: View, @preconcurrency Identifiable {
             let trimmedNote = self.note.trimmingCharacters(in: .whitespacesAndNewlines)
             node.note = trimmedNote.isEmpty ? nil : trimmedNote
             
-            // Save on background context to avoid blocking UI
-            viewContext.perform {
-                do {
-                    try viewContext.save()
-                } catch {
-                    print("Failed to auto-save note: \(error)")
-                }
+            // Save directly since we're already on the main queue
+            do {
+                try viewContext.save()
+            } catch {
+                showError("Failed to auto-save note: \(error.localizedDescription)")
             }
         }
         
@@ -119,6 +222,17 @@ struct NoteEditor: View, @preconcurrency Identifiable {
     }
 
     private func save() {
+        // Validate before saving
+        if let titleError = validateTitle(title) {
+            showError("Cannot save: \(titleError)")
+            return
+        }
+        
+        if let noteError = validateNote(note) {
+            showError("Cannot save: \(noteError)")
+            return
+        }
+        
         let trimmedTitle = title.trimmingCharacters(in: .whitespacesAndNewlines)
         if !trimmedTitle.isEmpty { 
             node.title = trimmedTitle 
@@ -132,7 +246,7 @@ struct NoteEditor: View, @preconcurrency Identifiable {
             hasChanges = false
             dismiss()
         } catch {
-            print("Failed to save note: \(error)")
+            showError("Failed to save note: \(error.localizedDescription)")
         }
     }
 }

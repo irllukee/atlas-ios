@@ -349,7 +349,7 @@ struct TemplateSelectionView: View {
             
             do {
                 let repository = DependencyContainer.shared.journalRepository
-                templates = try await repository.fetchTemplates(for: selectedType)
+                templates = try repository.fetchTemplates(for: selectedType)
             } catch {
                 print("Error loading templates: \(error)")
             }

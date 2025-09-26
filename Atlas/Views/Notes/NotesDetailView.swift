@@ -32,44 +32,13 @@ struct NotesDetailView: View {
     // Aztec Editor Controller
     @StateObject private var editorController = AztecEditorController()
     
-    // Auto-save
-    @State private var autoSaveTimer: Timer?
-    private let autoSaveInterval: TimeInterval = 2.0
+    // Auto-save (using consolidated service)
+    private let autoSaveService = AutoSaveService.shared
     
     var body: some View {
         NavigationView {
             ZStack {
-                VStack(spacing: 12) {
-                    // Title Field
-                    AtlasTextField("Title", placeholder: "Note Title", text: $title, style: .floating)
-                        .padding(.horizontal, AtlasTheme.Spacing.md)
-                        .onChange(of: title) { _, _ in
-                            hasUnsavedChanges = true
-                            scheduleAutoSave()
-                        }
-                    
-                    // Aztec Editor
-                    AztecEditorView(html: $html, controller: editorController, placeholder: "")
-                        .frame(minHeight: 300)
-                        .background(
-                            RoundedRectangle(cornerRadius: AtlasTheme.CornerRadius.medium)
-                                .fill(AtlasTheme.Colors.glassBackground)
-                        )
-                        .overlay(
-                            RoundedRectangle(cornerRadius: AtlasTheme.CornerRadius.medium)
-                                .stroke(AtlasTheme.Colors.glassBorder, lineWidth: 1)
-                        )
-                        .padding(.horizontal, AtlasTheme.Spacing.md)
-                        .onChange(of: html) { _, _ in
-                            hasUnsavedChanges = true
-                            scheduleAutoSave()
-                        }
-                    
-                    // Metadata Bar
-                    metadataBar
-                    
-                    Spacer()
-                }
+                mainContent
                 
                 // Floating Editor Toolbar (appears over keyboard)
                 EditorToolbar(controller: editorController)
@@ -140,10 +109,10 @@ struct NotesDetailView: View {
         .navigationViewStyle(StackNavigationViewStyle())
         .onAppear {
             setupNote()
-            startAutoSave()
+            // Auto-save is now handled by AutoSaveService.shared
         }
         .onDisappear {
-            stopAutoSave()
+            // Auto-save cleanup is handled by AutoSaveService.shared
         }
         .sheet(isPresented: $showingFolderPicker) {
             FolderPickerView(selectedFolder: $selectedFolder)
@@ -248,6 +217,51 @@ struct NotesDetailView: View {
                 selectedTextColor = nil // Reset after application
             }
         }
+    }
+    
+    // MARK: - Main Content
+    private var mainContent: some View {
+        VStack(spacing: 12) {
+            // Title Field
+            AtlasTextField("Title", placeholder: "Note Title", text: $title, style: .floating)
+                .padding(.horizontal, AtlasTheme.Spacing.md)
+                .onChange(of: title) { _, newTitle in
+                    hasUnsavedChanges = true
+                    // Auto-save on title change
+                    if let noteId = note?.uuid {
+                        autoSaveService.saveNoteChange(noteId: noteId, title: newTitle)
+                    }
+                }
+            
+            // Aztec Editor
+            aztecEditorView
+            
+            // Metadata Bar
+            metadataBar
+            
+            Spacer()
+        }
+    }
+    
+    private var aztecEditorView: some View {
+        AztecEditorView(html: $html, controller: editorController, placeholder: "")
+            .frame(minHeight: 300)
+            .background(
+                RoundedRectangle(cornerRadius: AtlasTheme.CornerRadius.medium)
+                    .fill(AtlasTheme.Colors.glassBackground)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: AtlasTheme.CornerRadius.medium)
+                    .stroke(AtlasTheme.Colors.glassBorder, lineWidth: 1)
+            )
+            .padding(.horizontal, AtlasTheme.Spacing.md)
+            .onChange(of: html) { _, newHtml in
+                hasUnsavedChanges = true
+                // Auto-save on content change
+                if let noteId = note?.uuid {
+                    autoSaveService.saveNoteChange(noteId: noteId, content: newHtml)
+                }
+            }
     }
     
     // MARK: - Metadata Bar
@@ -379,31 +393,8 @@ struct NotesDetailView: View {
         }
     }
     
-    // MARK: - Auto-save
-    private func startAutoSave() {
-        autoSaveTimer = Timer.scheduledTimer(withTimeInterval: autoSaveInterval, repeats: true) { _ in
-            DispatchQueue.main.async {
-                if hasUnsavedChanges {
-                    saveNote()
-                }
-            }
-        }
-    }
-    
-    private func stopAutoSave() {
-        autoSaveTimer?.invalidate()
-        autoSaveTimer = nil
-    }
-    
-    private func scheduleAutoSave() {
-        // Debounce auto-save
-        autoSaveTimer?.invalidate()
-        autoSaveTimer = Timer.scheduledTimer(withTimeInterval: autoSaveInterval, repeats: false) { _ in
-            DispatchQueue.main.async {
-                saveNote()
-            }
-        }
-    }
+    // MARK: - Auto-save (using consolidated AutoSaveService)
+    // Auto-save is now handled by AutoSaveService.shared through onChange handlers
     
     private func saveNote() {
         // Derive clean title from content if title is empty or contains HTML
@@ -589,6 +580,7 @@ struct NotesTagPickerView: View {
             notesService.loadData()
         }
     }
+    
 }
 
 // MARK: - Preview

@@ -5,8 +5,8 @@ struct TasksView: View {
     @StateObject private var viewModel: TaskViewModel
     
     init() {
-        let taskRepo = TaskRepository(context: PersistenceController.shared.container.viewContext)
-        let tabRepo = TaskTabRepository(context: PersistenceController.shared.container.viewContext)
+        let taskRepo = TaskRepository(context: CoreDataStack.shared.viewContext)
+        let tabRepo = TaskTabRepository(context: CoreDataStack.shared.viewContext)
         _viewModel = StateObject(wrappedValue: TaskViewModel(taskRepository: taskRepo, tabRepository: tabRepo))
     }
     

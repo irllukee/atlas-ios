@@ -200,7 +200,7 @@ struct PermissionCard: View {
                 Spacer()
                 
                 // Arrow or status
-                if let status = status {
+                if status != nil {
                     Image(systemName: statusIcon)
                         .font(.system(size: 16, weight: .medium))
                         .foregroundColor(statusColor)

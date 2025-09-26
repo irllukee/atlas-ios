@@ -79,7 +79,7 @@ struct ModernFAB: View {
                         insertion: .scale.combined(with: .opacity),
                         removal: .scale.combined(with: .opacity)
                     ))
-                    .animation(.spring(response: 0.4, dampingFraction: 0.8).delay(Double(Category.allCases.firstIndex(of: category) ?? 0) * 0.1), value: isExpanded)
+                    .animation(.spring(response: 0.4, dampingFraction: 0.8).delay(Double(Category.allCases.firstIndex(of: category) ?? 0) * 0.03), value: isExpanded)
                 }
             }
             
@@ -91,7 +91,7 @@ struct ModernFAB: View {
                             insertion: .scale.combined(with: .opacity),
                             removal: .scale.combined(with: .opacity)
                         ))
-                        .animation(.spring(response: 0.4, dampingFraction: 0.8).delay(Double(index) * 0.1), value: selectedCategory)
+                        .animation(.spring(response: 0.4, dampingFraction: 0.8).delay(Double(index) * 0.03), value: selectedCategory)
                 }
             }
             
@@ -105,7 +105,7 @@ struct ModernFAB: View {
                     .background(
                         Circle()
                             .fill(AtlasTheme.Colors.primary)
-                            .shadow(color: AtlasTheme.Colors.primary.opacity(0.3), radius: 8, x: 0, y: 4)
+                            .shadow(color: AtlasTheme.Colors.primary.opacity(0.2), radius: 6, x: 0, y: 3)
                     )
             }
             .rotationEffect(.degrees(rotationAngle))
@@ -155,7 +155,7 @@ struct FABCategoryButton: View {
                     .background(
                         Circle()
                             .fill(isSelected ? category.color : category.color.opacity(0.7))
-                            .shadow(color: category.color.opacity(0.3), radius: 4, x: 0, y: 2)
+                            .shadow(color: category.color.opacity(0.2), radius: 3, x: 0, y: 1)
                     )
                 
                 Text(category.rawValue)
@@ -185,7 +185,7 @@ struct ActionButton: View {
                     .background(
                         Circle()
                             .fill(action.color)
-                            .shadow(color: action.color.opacity(0.3), radius: 4, x: 0, y: 2)
+                            .shadow(color: action.color.opacity(0.2), radius: 3, x: 0, y: 1)
                     )
                 
                 Text(action.title)
@@ -239,7 +239,7 @@ struct ExpandableFAB: View {
                             insertion: .scale.combined(with: .opacity),
                             removal: .scale.combined(with: .opacity)
                         ))
-                        .animation(.spring(response: 0.5, dampingFraction: 0.8).delay(Double(index) * 0.1), value: isExpanded)
+                        .animation(.spring(response: 0.5, dampingFraction: 0.8).delay(Double(index) * 0.03), value: isExpanded)
                 }
             }
             
@@ -253,7 +253,7 @@ struct ExpandableFAB: View {
                     .background(
                         Circle()
                             .fill(AtlasTheme.Colors.primary)
-                            .shadow(color: AtlasTheme.Colors.primary.opacity(0.3), radius: 8, x: 0, y: 4)
+                            .shadow(color: AtlasTheme.Colors.primary.opacity(0.2), radius: 6, x: 0, y: 3)
                     )
             }
             .rotationEffect(.degrees(rotationAngle))
